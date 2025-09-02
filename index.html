@@ -300,11 +300,30 @@
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
+            
+            // Force close all modals and clean interface
+            closeAllModals();
+            cleanInterface();
+            
             updateDashboard();
             generateCalendar();
             updateAgenda();
             updateAbsencesSummary();
             initChart();
+        }
+
+        // Clean interface from stuck elements
+        function cleanInterface() {
+            // Remove any floating buttons or elements that shouldn't be there
+            const stuckElements = document.querySelectorAll('button[style*="position: fixed"], .floating-button, .stuck-button');
+            stuckElements.forEach(el => el.remove());
+            
+            // Ensure all modals are properly closed
+            document.querySelectorAll('.fixed.inset-0').forEach(modal => {
+                if (modal.id && modal.id.includes('modal')) {
+                    modal.classList.add('hidden');
+                }
+            });
         }
 
         function logout() {
@@ -1305,22 +1324,26 @@
             <!-- Quick Actions -->
             <div class="bg-white rounded-lg shadow p-6 mb-8">
                 <h3 class="text-lg font-semibold mb-4">Azioni Rapide</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 quick-actions">
-                    <button onclick="addShift()" class="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 text-center transition-colors">
-                        <i class="fas fa-plus-circle text-2xl mb-2"></i>
-                        <p>Aggiungi Turno</p>
+                <!-- First Row -->
+                <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                    <button onclick="addShift()" class="flex-1 bg-blue-500 text-white p-6 rounded-lg hover:bg-blue-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
+                        <i class="fas fa-plus-circle text-3xl mb-2"></i>
+                        <p class="font-semibold">Aggiungi Turno</p>
                     </button>
-                    <button onclick="addAllowance()" class="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600 text-center transition-colors">
-                        <i class="fas fa-euro-sign text-2xl mb-2"></i>
-                        <p>Indennità</p>
+                    <button onclick="addAllowance()" class="flex-1 bg-green-500 text-white p-6 rounded-lg hover:bg-green-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
+                        <i class="fas fa-euro-sign text-3xl mb-2"></i>
+                        <p class="font-semibold">Indennità</p>
                     </button>
-                    <button onclick="addAbsence()" class="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600 text-center transition-colors">
-                        <i class="fas fa-calendar-times text-2xl mb-2"></i>
-                        <p>Assenza</p>
+                </div>
+                <!-- Second Row -->
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button onclick="addAbsence()" class="flex-1 bg-orange-500 text-white p-6 rounded-lg hover:bg-orange-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
+                        <i class="fas fa-calendar-times text-3xl mb-2"></i>
+                        <p class="font-semibold">Assenza</p>
                     </button>
-                    <button onclick="backupData()" class="bg-purple-500 text-white p-4 rounded-lg hover:bg-purple-600 text-center transition-colors">
-                        <i class="fas fa-download text-2xl mb-2"></i>
-                        <p>Backup</p>
+                    <button onclick="backupData()" class="flex-1 bg-purple-500 text-white p-6 rounded-lg hover:bg-purple-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
+                        <i class="fas fa-download text-3xl mb-2"></i>
+                        <p class="font-semibold">Backup</p>
                     </button>
                 </div>
             </div>
