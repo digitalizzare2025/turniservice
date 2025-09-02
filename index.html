@@ -279,21 +279,137 @@
             }
         }
 
-        // Authentication
-        function handleAuth(event) {
+        // Authentication Variables
+        let registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+        let currentLoginEmail = '';
+        let generatedOTP = '';
+
+        // Registration
+        function handleRegistration(event) {
             event.preventDefault();
             const formData = new FormData(event.target);
-            currentUser = {
+            const email = formData.get('email');
+            
+            // Check if user already exists
+            if (registeredUsers[email]) {
+                alert('Utente già registrato con questa email. Usa il login.');
+                switchToLogin();
+                return;
+            }
+
+            const userData = {
                 nome: formData.get('nome'),
                 cognome: formData.get('cognome'),
-                email: formData.get('email'),
+                email: email,
                 forza: formData.get('forza'),
                 grado: formData.get('grado'),
                 irpef: 23,
-                turnazione: 'quinta'
+                turnazione: 'quinta',
+                registeredAt: new Date().toISOString()
             };
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            showMainApp();
+
+            // Save user
+            registeredUsers[email] = userData;
+            localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+            
+            // Show success message and switch to login
+            alert('Registrazione completata con successo! Ora puoi effettuare il login.');
+            switchToLogin();
+            document.getElementById('login-email').value = email;
+        }
+
+        // Login
+        function handleLogin(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const email = formData.get('email');
+            
+            // Check if user exists
+            if (!registeredUsers[email]) {
+                alert('Email non trovata. Effettua prima la registrazione.');
+                switchToRegistration();
+                return;
+            }
+
+            // Generate OTP
+            currentLoginEmail = email;
+            generatedOTP = '123456'; // Demo OTP - in produzione sarebbe casuale
+            
+            // Simulate sending email
+            setTimeout(() => {
+                showOTPForm(email);
+            }, 1000);
+        }
+
+        // OTP Verification
+        function handleOTPVerification(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const enteredOTP = formData.get('otp');
+            
+            if (enteredOTP === generatedOTP) {
+                // Load user data
+                currentUser = registeredUsers[currentLoginEmail];
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                showMainApp();
+            } else {
+                alert('Codice di verifica non valido. Riprova.');
+                document.getElementById('otp-code').value = '';
+                document.getElementById('otp-code').focus();
+            }
+        }
+
+        // Form switching functions
+        function switchToLogin() {
+            document.getElementById('registration-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('otp-form').classList.add('hidden');
+        }
+
+        function switchToRegistration() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('registration-form').classList.remove('hidden');
+            document.getElementById('otp-form').classList.add('hidden');
+        }
+
+        function showOTPForm(email) {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('otp-form').classList.remove('hidden');
+            document.getElementById('otp-email').textContent = email;
+            document.getElementById('otp-code').focus();
+        }
+
+        function backToLogin() {
+            document.getElementById('otp-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            currentLoginEmail = '';
+            generatedOTP = '';
+        }
+
+        function resendOTP() {
+            generatedOTP = '123456'; // Demo OTP
+            alert('Nuovo codice inviato a ' + currentLoginEmail);
+            document.getElementById('otp-code').value = '';
+            document.getElementById('otp-code').focus();
+        }
+
+        // Initialize authentication
+        function initAuth() {
+            // Check if user is already logged in
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showMainApp();
+                return;
+            }
+
+            // Check if there are registered users to determine default form
+            const hasRegisteredUsers = Object.keys(registeredUsers).length > 0;
+            if (hasRegisteredUsers) {
+                switchToLogin();
+            } else {
+                switchToRegistration();
+            }
         }
 
         function showMainApp() {
@@ -1006,11 +1122,8 @@
                 modal.classList.add('hidden');
             });
             
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                showMainApp();
-            }
+            // Initialize authentication system
+            initAuth();
         });
 
         // Force close all modals function
@@ -1185,19 +1298,21 @@
                     </span>
                 </div>
             </div>
-            <form class="mt-8 space-y-6" onsubmit="handleAuth(event)">
+
+            <!-- Registration Form -->
+            <form id="registration-form" class="mt-8 space-y-6" onsubmit="handleRegistration(event)">
                 <div class="rounded-md shadow-sm -space-y-px">
                     <div>
-                        <input id="nome" name="nome" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Nome">
+                        <input id="reg-nome" name="nome" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Nome">
                     </div>
                     <div>
-                        <input id="cognome" name="cognome" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Cognome">
+                        <input id="reg-cognome" name="cognome" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Cognome">
                     </div>
                     <div>
-                        <input id="email" name="email" type="email" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Email istituzionale">
+                        <input id="reg-email" name="email" type="email" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Email istituzionale">
                     </div>
                     <div>
-                        <select id="forza" name="forza" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm">
+                        <select id="reg-forza" name="forza" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm">
                             <option value="">Seleziona Forza di Appartenenza</option>
                             <optgroup label="Forze Armate">
                                 <option value="carabinieri">Carabinieri</option>
@@ -1210,14 +1325,84 @@
                         </select>
                     </div>
                     <div>
-                        <input id="grado" name="grado" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Grado">
+                        <input id="reg-grado" name="grado" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Grado">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <i class="fas fa-user-plus mr-2"></i>
+                        Registrati
+                    </button>
+                </div>
+                <div class="text-center">
+                    <button type="button" onclick="switchToLogin()" class="text-indigo-600 hover:text-indigo-500 text-sm">
+                        Hai già un account? Accedi
+                    </button>
+                </div>
+            </form>
+
+            <!-- Login Form -->
+            <form id="login-form" class="mt-8 space-y-6 hidden" onsubmit="handleLogin(event)">
+                <div class="rounded-md shadow-sm">
+                    <div>
+                        <input id="login-email" name="email" type="email" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Email istituzionale">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <i class="fas fa-paper-plane mr-2"></i>
+                        Invia Codice di Verifica
+                    </button>
+                </div>
+                <div class="text-center">
+                    <button type="button" onclick="switchToRegistration()" class="text-indigo-600 hover:text-indigo-500 text-sm">
+                        Non hai un account? Registrati
+                    </button>
+                </div>
+            </form>
+
+            <!-- OTP Verification Form -->
+            <form id="otp-form" class="mt-8 space-y-6 hidden" onsubmit="handleOTPVerification(event)">
+                <div class="text-center mb-4">
+                    <i class="fas fa-envelope text-4xl text-indigo-600 mb-2"></i>
+                    <h3 class="text-lg font-medium text-gray-900">Codice inviato!</h3>
+                    <p class="text-sm text-gray-600">Abbiamo inviato un codice di verifica a:</p>
+                    <p id="otp-email" class="text-sm font-medium text-indigo-600"></p>
+                </div>
+                
+                <div class="rounded-md shadow-sm">
+                    <div>
+                        <input id="otp-code" name="otp" type="text" maxlength="6" required class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm text-center text-2xl tracking-widest" placeholder="123456">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-md">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        <p class="text-sm text-blue-700">
+                            <strong>Demo:</strong> Usa il codice <span class="font-mono font-bold">123456</span> per accedere
+                        </p>
                     </div>
                 </div>
 
                 <div>
                     <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         <i class="fas fa-sign-in-alt mr-2"></i>
-                        Accedi
+                        Verifica e Accedi
+                    </button>
+                </div>
+                
+                <div class="text-center space-y-2">
+                    <button type="button" onclick="resendOTP()" class="text-indigo-600 hover:text-indigo-500 text-sm">
+                        <i class="fas fa-redo mr-1"></i>
+                        Invia nuovamente il codice
+                    </button>
+                    <br>
+                    <button type="button" onclick="backToLogin()" class="text-gray-500 hover:text-gray-700 text-sm">
+                        <i class="fas fa-arrow-left mr-1"></i>
+                        Torna al login
                     </button>
                 </div>
             </form>
@@ -1324,27 +1509,29 @@
             <!-- Quick Actions -->
             <div class="bg-white rounded-lg shadow p-6 mb-8">
                 <h3 class="text-lg font-semibold mb-4">Azioni Rapide</h3>
-                <!-- First Row -->
-                <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                    <button onclick="addShift()" class="flex-1 bg-blue-500 text-white p-6 rounded-lg hover:bg-blue-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
-                        <i class="fas fa-plus-circle text-3xl mb-2"></i>
-                        <p class="font-semibold">Aggiungi Turno</p>
-                    </button>
-                    <button onclick="addAllowance()" class="flex-1 bg-green-500 text-white p-6 rounded-lg hover:bg-green-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
-                        <i class="fas fa-euro-sign text-3xl mb-2"></i>
-                        <p class="font-semibold">Indennità</p>
-                    </button>
-                </div>
-                <!-- Second Row -->
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <button onclick="addAbsence()" class="flex-1 bg-orange-500 text-white p-6 rounded-lg hover:bg-orange-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
-                        <i class="fas fa-calendar-times text-3xl mb-2"></i>
-                        <p class="font-semibold">Assenza</p>
-                    </button>
-                    <button onclick="backupData()" class="flex-1 bg-purple-500 text-white p-6 rounded-lg hover:bg-purple-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center">
-                        <i class="fas fa-download text-3xl mb-2"></i>
-                        <p class="font-semibold">Backup</p>
-                    </button>
+                <div class="space-y-4">
+                    <!-- Prima riga -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="addShift()" class="bg-blue-500 text-white p-6 rounded-lg hover:bg-blue-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center shadow-lg">
+                            <i class="fas fa-plus-circle text-3xl mb-2"></i>
+                            <p class="font-semibold text-lg">Aggiungi Turno</p>
+                        </button>
+                        <button onclick="addAllowance()" class="bg-green-500 text-white p-6 rounded-lg hover:bg-green-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center shadow-lg">
+                            <i class="fas fa-euro-sign text-3xl mb-2"></i>
+                            <p class="font-semibold text-lg">Indennità</p>
+                        </button>
+                    </div>
+                    <!-- Seconda riga -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="addAbsence()" class="bg-orange-500 text-white p-6 rounded-lg hover:bg-orange-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center shadow-lg">
+                            <i class="fas fa-calendar-times text-3xl mb-2"></i>
+                            <p class="font-semibold text-lg">Assenza</p>
+                        </button>
+                        <button onclick="backupData()" class="bg-purple-500 text-white p-6 rounded-lg hover:bg-purple-600 text-center transition-all duration-200 min-h-[100px] flex flex-col items-center justify-center shadow-lg">
+                            <i class="fas fa-download text-3xl mb-2"></i>
+                            <p class="font-semibold text-lg">Backup</p>
+                        </button>
+                    </div>
                 </div>
             </div>
 
