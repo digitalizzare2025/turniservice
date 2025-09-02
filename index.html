@@ -456,17 +456,12 @@
     </div>
   </div>
 
-  <script>
-  // ====== CONFIG EmailJS (facoltativo) ======
-  const EMAILJS_PUBLIC_KEY = "INSERISCI_PUBLIC_KEY";
-  const EMAILJS_SERVICE_ID = "INSERISCI_SERVICE_ID";
-  const EMAILJS_TEMPLATE_ID = "INSERISCI_TEMPLATE_ID";
-
-  // ====== PWA Vars ======
+ <script>
+  // ====== PWA Variables ======
   let deferredPrompt;
   let isOnline = navigator.onLine;
 
-  // ====== Stores ======
+  // ====== Data Stores ======
   let currentUser = null;
   let currentDate = new Date();
   let shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
@@ -474,57 +469,29 @@
   let absences = JSON.parse(localStorage.getItem('absences') || '[]');
   let monthlyChart = null;
 
-  // ====== Registered Users & OTP ======
+  // ====== Registered Users (demo) ======
   let registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
   let currentLoginEmail = '';
   let generatedOTP = '';
 
-  function setOtpForEmail(email, code, ttlMinutes = 10) {
-    const all = JSON.parse(localStorage.getItem('otp_store') || '{}');
-    all[email] = { code, exp: Date.now() + ttlMinutes * 60 * 1000 };
-    localStorage.setItem('otp_store', JSON.stringify(all));
-  }
-  function getOtpForEmail(email) {
-    const all = JSON.parse(localStorage.getItem('otp_store') || '{}');
-    const entry = all[email];
-    if (!entry) return null;
-    if (Date.now() > entry.exp) {
-      delete all[email];
-      localStorage.setItem('otp_store', JSON.stringify(all));
-      return null;
-    }
-    return entry.code;
-  }
-
-  // ====== EmailJS ======
-  function initEmailJS(){
-    if (window.emailjs && EMAILJS_PUBLIC_KEY && EMAILJS_PUBLIC_KEY !== "INSERISCI_PUBLIC_KEY") {
-      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-    }
-  }
-  async function sendOtpEmail(toEmail, toName, otp) {
-    if (!window.emailjs ||
-        !EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID ||
-        EMAILJS_PUBLIC_KEY === "INSERISCI_PUBLIC_KEY" ||
-        EMAILJS_SERVICE_ID === "INSERISCI_SERVICE_ID" ||
-        EMAILJS_TEMPLATE_ID === "INSERISCI_TEMPLATE_ID") {
-      throw new Error("Config EmailJS mancante.");
-    }
-    const params = { to_email: toEmail, to_name: toName || toEmail, otp_code: otp, app_name: "TurniService" };
-    return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
-  }
-
-  // ====== PWA Manifest + SW ======
+  // ====== PWA Manifest + Service Worker ======
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
+      // Inject manifest dynamically
       const manifest = {
         name: "TurniService - Gestione Turni Forze dell'Ordine",
         short_name: "TurniService",
+        description: "Applicazione per la gestione dei turni e delle indennità delle Forze dell'Ordine",
         start_url: "./",
         display: "standalone",
         theme_color: "#1e40af",
         background_color: "#f3f4f6",
-        orientation: "portrait"
+        orientation: "portrait",
+        categories: ["productivity", "business"],
+        icons: [
+          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\" fill=\"#1e40af\"><circle cx=\"256\" cy=\"256\" r=\"256\" fill=\"#1e40af\"/><path d=\"M256 100l50 25v150l-50 25-50-25V125l50-25z\" fill=\"white\"/></svg>'), sizes: "512x512", type: "image/svg+xml" },
+          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 192\" fill=\"#1e40af\"><circle cx=\"96\" cy=\"96\" r=\"96\" fill=\"#1e40af\"/><path d=\"M96 40l24 12v75l-24 12-24-12V52l24-12z\" fill=\"white\"/></svg>'), sizes: "192x192", type: "image/svg+xml" }
+        ]
       };
       const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
       const manifestURL = URL.createObjectURL(manifestBlob);
@@ -533,23 +500,25 @@
       link.href = manifestURL;
       document.head.appendChild(link);
 
+      // Register SW
       const swScript = `
-        const CACHE_NAME = 'turniservice-v5';
+        const CACHE_NAME = 'turniservice-v3';
         const urlsToCache = [
           './',
           'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css',
           'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css',
-          'https://cdn.jsdelivr.net/npm/chart.js',
-          'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
+          'https://cdn.jsdelivr.net/npm/chart.js'
         ];
-        self.addEventListener('install', e => {
-          e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+        self.addEventListener('install', event => {
+          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
         });
-        self.addEventListener('activate', e => {
-          e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
+        self.addEventListener('activate', event => {
+          event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
         });
-        self.addEventListener('fetch', e => {
-          e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./'))));
+        self.addEventListener('fetch', event => {
+          event.respondWith(
+            caches.match(event.request).then(response => response || fetch(event.request).catch(() => caches.match('./')))
+          );
         });
       `;
       const blob = new Blob([swScript], { type: 'application/javascript' });
@@ -558,7 +527,7 @@
     });
   }
 
-  // ====== PWA Install ======
+  // ====== PWA Install Prompt ======
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
@@ -596,86 +565,121 @@
   // ====== Auth ======
   function handleRegistration(event) {
     event.preventDefault();
-    const form = event.target;
-    const userData = {
-      nome: form.nome.value.trim(),
-      cognome: form.cognome.value.trim(),
-      email: form.email.value.trim().toLowerCase(),
-      forza: form.forza.value,
-      grado: form.grado.value.trim(),
-      irpef: 23, turnazione: 'quinta', registeredAt: new Date().toISOString()
-    };
-    if (!userData.nome || !userData.cognome || !userData.email || !userData.forza || !userData.grado) { alert('Compila tutti i campi.'); return; }
-    if (registeredUsers[userData.email]) { alert('Utente già registrato con questa email. Usa il login.'); switchToLogin(); document.getElementById('login-email').value = userData.email; return; }
-    registeredUsers[userData.email] = userData;
-    localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-    alert('Registrazione completata! Ora effettua il login.');
-    switchToLogin(); document.getElementById('login-email').value = userData.email;
+    try {
+      const form = event.target;
+      const userData = {
+        nome: form.nome.value.trim(),
+        cognome: form.cognome.value.trim(),
+        email: form.email.value.trim().toLowerCase(),
+        forza: form.forza.value,
+        grado: form.grado.value.trim(),
+        irpef: 23,
+        turnazione: 'quinta',
+        registeredAt: new Date().toISOString()
+      };
+      if (!userData.nome || !userData.cognome || !userData.email || !userData.forza || !userData.grado) {
+        alert('Compila tutti i campi.');
+        return;
+      }
+      if (registeredUsers[userData.email]) {
+        alert('Utente già registrato con questa email. Usa il login.');
+        switchToLogin();
+        document.getElementById('login-email').value = userData.email;
+        return;
+      }
+      registeredUsers[userData.email] = userData;
+      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+      alert('Registrazione completata! Ora effettua il login.');
+      switchToLogin();
+      document.getElementById('login-email').value = userData.email;
+    } catch (e) {
+      console.error(e);
+      alert('Errore durante la registrazione. Riprova.');
+    }
   }
 
-  async function handleLogin(event) {
+  function handleLogin(event) {
     event.preventDefault();
     const email = event.target.email.value.trim().toLowerCase();
-    if (!registeredUsers[email]) { alert('Email non trovata. Effettua prima la registrazione.'); switchToRegistration(); return; }
-    if (!isOnline) { alert('Sei offline. Connettiti per ricevere il codice OTP.'); return; }
-    currentLoginEmail = email;
-    generatedOTP = String(Math.floor(100000 + Math.random() * 900000));
-    setOtpForEmail(email, generatedOTP, 10);
-    try {
-      await sendOtpEmail(email, registeredUsers[email].nome || email, generatedOTP);
-      showOTPForm(email);
-    } catch (err) {
-      console.error(err);
-      alert('Impossibile inviare OTP. Verifica configurazione EmailJS.');
+    if (!registeredUsers[email]) {
+      alert('Email non trovata. Effettua prima la registrazione.');
+      switchToRegistration();
+      return;
     }
+    currentLoginEmail = email;
+    generatedOTP = '123456'; // demo
+    showOTPForm(email);
   }
 
   function handleOTPVerification(event) {
     event.preventDefault();
     const enteredOTP = event.target.otp.value.trim();
-    const expected = getOtpForEmail(currentLoginEmail);
-    if (enteredOTP && expected && enteredOTP === expected) {
+    if (enteredOTP === generatedOTP) {
       currentUser = registeredUsers[currentLoginEmail];
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       showMainApp();
     } else {
-      alert('Codice non valido o scaduto. Richiedi un nuovo codice.');
+      alert('Codice di verifica non valido.');
       document.getElementById('otp-code').value = '';
       document.getElementById('otp-code').focus();
     }
   }
 
-  async function resendOTP() {
-    if (!currentLoginEmail) return;
-    if (!isOnline) { alert('Sei offline. Connettiti per inviare nuovamente il codice.'); return; }
-    generatedOTP = String(Math.floor(100000 + Math.random() * 900000));
-    setOtpForEmail(currentLoginEmail, generatedOTP, 10);
-    try {
-      await sendOtpEmail(currentLoginEmail, registeredUsers[currentLoginEmail].nome || currentLoginEmail, generatedOTP);
-      alert('Nuovo codice OTP inviato.');
-    } catch (err) { console.error(err); alert('Errore nell’invio del nuovo OTP.'); }
+  function resendOTP() {
+    generatedOTP = '123456';
+    alert('Nuovo codice inviato a ' + currentLoginEmail);
+    const input = document.getElementById('otp-code');
+    if (input) { input.value=''; input.focus(); }
   }
 
-  function switchToLogin() { document.getElementById('registration-form').classList.add('hidden'); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('otp-form').classList.add('hidden'); }
-  function switchToRegistration() { document.getElementById('login-form').classList.add('hidden'); document.getElementById('registration-form').classList.remove('hidden'); document.getElementById('otp-form').classList.add('hidden'); }
-  function showOTPForm(email) { document.getElementById('login-form').classList.add('hidden'); document.getElementById('otp-form').classList.remove('hidden'); document.getElementById('otp-email').textContent = email; document.getElementById('otp-code').focus(); }
-  function backToLogin() { document.getElementById('otp-form').classList.add('hidden'); document.getElementById('login-form').classList.remove('hidden'); currentLoginEmail = ''; generatedOTP = ''; }
+  function switchToLogin() {
+    document.getElementById('registration-form').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+    document.getElementById('otp-form').classList.add('hidden');
+  }
+  function switchToRegistration() {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('registration-form').classList.remove('hidden');
+    document.getElementById('otp-form').classList.add('hidden');
+  }
+  function showOTPForm(email) {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('otp-form').classList.remove('hidden');
+    document.getElementById('otp-email').textContent = email;
+    document.getElementById('otp-code').focus();
+  }
+  function backToLogin() {
+    document.getElementById('otp-form').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+    currentLoginEmail = '';
+    generatedOTP = '';
+  }
 
   function initAuth() {
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) { currentUser = JSON.parse(savedUser); showMainApp(); return; }
-    Object.keys(registeredUsers).length > 0 ? switchToLogin() : switchToRegistration();
+    const hasRegisteredUsers = Object.keys(registeredUsers).length > 0;
+    if (hasRegisteredUsers) { switchToLogin(); } else { switchToRegistration(); }
   }
 
   function showMainApp() {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
-    updateConnectionStatus();
-    updateDashboard(); generateCalendar(); updateAgenda(); updateAbsencesSummary(); initChart();
+    closeAllModals();
+    cleanInterface();
+    updateDashboard();
+    generateCalendar();
+    updateAgenda();
+    updateAbsencesSummary();
+    initChart();
   }
 
-  function logout() { localStorage.removeItem('currentUser'); location.reload(); }
+  function logout() {
+    localStorage.removeItem('currentUser');
+    location.reload();
+  }
+
 
   // ====== UI Helpers ======
   function showTab(tabName, ev) {
