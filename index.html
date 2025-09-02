@@ -16,15 +16,32 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
   <style>
-    .calendar-day{min-height:120px;border:1px solid #e5e7eb}
+    .calendar-day{min-height:120px;border:1px solid #e5e7eb;cursor:pointer}
     .calendar-day.today{background-color:#eff6ff;border-color:#3b82f6}
     .shift-sera{background-color:#fef3c7}
     .shift-pomeriggio{background-color:#d1fae5}
     .shift-mattina{background-color:#dbeafe}
     .shift-notte{background-color:#e0e7ff}
     .shift-riposo{background-color:#f3f4f6}
+    .absence-badge{display:inline-block;padding:2px 6px;border-radius:6px;font-size:11px;font-weight:600}
+    .absence-congedo-ordinario{background:#fde68a;color:#7c2d12}
+    .absence-congedo-straordinario-malattia{background:#fecaca;color:#7f1d1d}
+    .absence-congedo-straordinario-esami{background:#e9d5ff;color:#4c1d95}
+    .absence-congedo-straordinario-familiari{background:#fee2e2;color:#7f1d1d}
+    .absence-congedo-straordinario-trasferimento{background:#e0f2fe;color:#075985}
+    .absence-riposo-legge{background:#bbf7d0;color:#065f46}
+    .absence-riposo-settimanale{background:#f3e8ff;color:#6b21a8}
+    .absence-riposo-festivo{background:#ffe4e6;color:#9f1239}
+    .absence-riposo-compensativo{background:#dcfce7;color:#14532d}
+    .absence-aspettativa{background:#fef9c3;color:#78350f}
+    .absence-legge-104{background:#bae6fd;color:#0c4a6e}
+    .absence-donazione-sangue{background:#fecdd3;color:#7f1d1d}
+    .absence-ore-studio{background:#fee2b3;color:#7c2d12}
+    .absence-permesso-breve{background:#e5e7eb;color:#111827}
+    .absence-permesso-sindacale{background:#fde68a;color:#78350f}
     .install-button{position:fixed;bottom:20px;right:20px;z-index:1000;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:50px;padding:12px 24px;font-weight:600;box-shadow:0 4px 20px rgba(59,130,246,.3);transition:all .3s ease;cursor:pointer}
     .install-button:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(59,130,246,.4)}
     .install-button.hidden{display:none}
@@ -119,7 +136,7 @@
         <input id="otp-code" name="otp" type="text" maxlength="6" required inputmode="numeric"
                class="w-full px-3 py-2 border rounded-md text-center text-2xl tracking-widest" placeholder="123456" aria-label="Codice OTP" />
         <div class="bg-blue-50 p-3 rounded-md text-blue-700 text-sm">
-          <strong>Demo:</strong> Usa il codice <span class="font-mono font-bold">123456</span> per accedere
+          <strong>Info:</strong> Controlla la tua casella email per il codice OTP.
         </div>
         <button type="submit" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
           <i class="fas fa-sign-in-alt mr-2"></i>Verifica e Accedi
@@ -134,7 +151,7 @@
 
   <!-- Main Application -->
   <div id="main-app" class="hidden">
-    <!-- Navigation -->
+    <!-- Nav -->
     <nav class="bg-blue-800 text-white p-4">
       <div class="container mx-auto flex justify-between items-center">
         <div class="flex items-center space-x-3">
@@ -164,43 +181,31 @@
       </div>
     </div>
 
-    <!-- Dashboard Tab -->
+    <!-- Dashboard -->
     <section id="dashboard-tab" class="tab-content container mx-auto p-6">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white p-5 rounded-lg shadow">
           <div class="flex items-center">
             <div class="p-3 rounded-full bg-green-100 text-green-500"><i class="fas fa-euro-sign text-xl"></i></div>
-            <div class="ml-4">
-              <p class="text-sm text-gray-600">Indennità Mese</p>
-              <p id="monthly-total" class="text-2xl font-semibold">€0,00</p>
-            </div>
+            <div class="ml-4"><p class="text-sm text-gray-600">Indennità Mese</p><p id="monthly-total" class="text-2xl font-semibold">€0,00</p></div>
           </div>
         </div>
         <div class="bg-white p-5 rounded-lg shadow">
           <div class="flex items-center">
             <div class="p-3 rounded-full bg-blue-100 text-blue-500"><i class="fas fa-clock text-xl"></i></div>
-            <div class="ml-4">
-              <p class="text-sm text-gray-600">Ore Straordinario</p>
-              <p id="overtime-hours" class="text-2xl font-semibold">0</p>
-            </div>
+            <div class="ml-4"><p class="text-sm text-gray-600">Ore Straordinario</p><p id="overtime-hours" class="text-2xl font-semibold">0</p></div>
           </div>
         </div>
         <div class="bg-white p-5 rounded-lg shadow">
           <div class="flex items-center">
             <div class="p-3 rounded-full bg-orange-100 text-orange-500"><i class="fas fa-calendar-alt text-xl"></i></div>
-            <div class="ml-4">
-              <p class="text-sm text-gray-600">Giorni Congedo</p>
-              <p id="leave-days" class="text-2xl font-semibold">0</p>
-            </div>
+            <div class="ml-4"><p class="text-sm text-gray-600">Giorni Congedo</p><p id="leave-days" class="text-2xl font-semibold">0</p></div>
           </div>
         </div>
         <div class="bg-white p-5 rounded-lg shadow">
           <div class="flex items-center">
             <div class="p-3 rounded-full bg-purple-100 text-purple-500"><i class="fas fa-user-clock text-xl"></i></div>
-            <div class="ml-4">
-              <p class="text-sm text-gray-600">Turni Mese</p>
-              <p id="shifts-count" class="text-2xl font-semibold">0</p>
-            </div>
+            <div class="ml-4"><p class="text-sm text-gray-600">Turni Mese</p><p id="shifts-count" class="text-2xl font-semibold">0</p></div>
           </div>
         </div>
       </div>
@@ -209,31 +214,21 @@
       <div class="bg-white rounded-lg shadow p-6 mb-6 quick-actions">
         <h3 class="text-lg font-semibold mb-3">Azioni Rapide</h3>
         <div class="grid grid-cols-2 gap-3">
-          <button onclick="addShift()" class="bg-blue-500 rounded-lg p-5 hover:bg-blue-600 focus:ring-2 focus:ring-blue-300">
-            <i class="fas fa-plus-circle text-2xl mb-1"></i><div class="font-semibold">Aggiungi Turno</div>
-          </button>
-          <button onclick="addAllowance()" class="bg-green-500 rounded-lg p-5 hover:bg-green-600 focus:ring-2 focus:ring-green-300">
-            <i class="fas fa-euro-sign text-2xl mb-1"></i><div class="font-semibold">Indennità</div>
-          </button>
-          <button onclick="addAbsence()" class="bg-red-500 rounded-lg p-5 hover:bg-red-600 focus:ring-2 focus:ring-red-300">
-            <i class="fas fa-calendar-times text-2xl mb-1"></i><div class="font-semibold">Assenza</div>
-          </button>
-          <button onclick="backupData()" class="bg-purple-500 rounded-lg p-5 hover:bg-purple-600 focus:ring-2 focus:ring-purple-300">
-            <i class="fas fa-download text-2xl mb-1"></i><div class="font-semibold">Backup</div>
-          </button>
+          <button onclick="addShift()" class="bg-blue-500 rounded-lg p-5 hover:bg-blue-600 focus:ring-2 focus:ring-blue-300"><i class="fas fa-plus-circle text-2xl mb-1"></i><div class="font-semibold">Aggiungi Turno</div></button>
+          <button onclick="addAllowance()" class="bg-green-500 rounded-lg p-5 hover:bg-green-600 focus:ring-2 focus:ring-green-300"><i class="fas fa-euro-sign text-2xl mb-1"></i><div class="font-semibold">Indennità</div></button>
+          <button onclick="addAbsence()" class="bg-orange-500 rounded-lg p-5 hover:bg-red-600 focus:ring-2 focus:ring-red-300"><i class="fas fa-calendar-times text-2xl mb-1"></i><div class="font-semibold">Assenza</div></button>
+          <button onclick="backupData()" class="bg-purple-500 rounded-lg p-5 hover:bg-purple-600 focus:ring-2 focus:ring-purple-300"><i class="fas fa-download text-2xl mb-1"></i><div class="font-semibold">Backup</div></button>
         </div>
       </div>
 
       <!-- Monthly Chart -->
       <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-semibold mb-3">Andamento Indennità Mensili</h3>
-        <div style="height: 360px;">
-          <canvas id="monthlyChart" aria-label="Grafico indennità mensili" role="img"></canvas>
-        </div>
+        <div style="height: 360px;"><canvas id="monthlyChart" aria-label="Grafico indennità mensili" role="img"></canvas></div>
       </div>
     </section>
 
-    <!-- Calendar Tab -->
+    <!-- Calendar -->
     <section id="calendar-tab" class="tab-content hidden container mx-auto p-6">
       <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4">
@@ -251,13 +246,14 @@
           <div class="flex items-center"><span class="w-4 h-4 shift-mattina mr-2"></span>Mattina</div>
           <div class="flex items-center"><span class="w-4 h-4 shift-notte mr-2"></span>Notte</div>
           <div class="flex items-center"><span class="w-4 h-4 shift-riposo mr-2"></span>Riposo</div>
+          <div class="flex items-center"><span class="absence-badge absence-riposo-legge mr-2"></span><span>Assenze</span></div>
         </div>
 
         <div class="grid grid-cols-7 gap-1" id="calendar-grid" aria-label="Griglia calendario"></div>
       </div>
     </section>
 
-    <!-- Agenda Tab -->
+    <!-- Agenda -->
     <section id="agenda-tab" class="tab-content hidden container mx-auto p-6">
       <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4">
@@ -270,7 +266,7 @@
       </div>
     </section>
 
-    <!-- Absences Tab -->
+    <!-- Absences -->
     <section id="absences-tab" class="tab-content hidden container mx-auto p-6">
       <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4">
@@ -289,11 +285,11 @@
       </div>
     </section>
 
-    <!-- Search Tab -->
+    <!-- Search -->
     <section id="search-tab" class="tab-content hidden container mx-auto p-6">
       <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-2xl font-bold mb-4">Ricerca</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <div class="grid grid-cols-1 md-grid-cols-3 gap-3 mb-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
             <select id="search-type" class="w-full p-2 border rounded">
@@ -320,31 +316,31 @@
     </section>
   </div>
 
-  <!-- Modals -->
-  <!-- Profile Modal -->
-  <div id="profile-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+  <!-- Day Actions Modal -->
+  <div id="day-actions-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
       <div class="flex justify-between items-center mb-4">
-        <h3 id="profile-modal-title" class="text-lg font-semibold">Impostazioni Profilo</h3>
-        <button onclick="closeModal('profile-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
+        <h3 id="day-actions-title" class="text-lg font-semibold">Azioni per il giorno</h3>
+        <button onclick="closeModal('day-actions-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
           <i class="fas fa-times"></i>
         </button>
       </div>
+      <div id="day-actions-content" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Profile / Shift / Allowance / Absence Modals -->
+  <div id="profile-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Impostazioni Profilo</h3>
+        <button onclick="closeModal('profile-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+      </div>
       <form onsubmit="updateProfile(event)" class="space-y-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Forza di Appartenenza</label>
-          <input type="text" id="profile-forza" class="w-full p-2 border rounded" readonly />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Grado</label>
-          <input type="text" id="profile-grado" class="w-full p-2 border rounded" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Aliquota IRPEF (%)</label>
-          <input type="number" id="profile-irpef" class="w-full p-2 border rounded" step="0.1" min="0" max="50" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Turnazione</label>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Forza</label><input type="text" id="profile-forza" class="w-full p-2 border rounded" readonly /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Grado</label><input type="text" id="profile-grado" class="w-full p-2 border rounded" /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">IRPEF (%)</label><input type="number" id="profile-irpef" class="w-full p-2 border rounded" step="0.1" min="0" max="50" /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Turnazione</label>
           <select id="profile-turnazione" class="w-full p-2 border rounded">
             <option value="quinta">Turno in Quinta</option>
             <option value="terza">Turno in Terza</option>
@@ -359,22 +355,16 @@
     </div>
   </div>
 
-  <!-- Add Shift Modal -->
-  <div id="shift-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="shift-modal-title">
+  <div id="shift-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
       <div class="flex justify-between items-center mb-4">
-        <h3 id="shift-modal-title" class="text-lg font-semibold">Aggiungi Turno</h3>
-        <button onclick="closeModal('shift-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
-          <i class="fas fa-times"></i>
-        </button>
+        <h3 class="text-lg font-semibold" id="shift-modal-title">Aggiungi Turno</h3>
+        <button onclick="closeModal('shift-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
       </div>
       <form onsubmit="saveShift(event)" class="space-y-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-          <input type="date" id="shift-date" class="w-full p-2 border rounded" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Turno</label>
+        <input type="hidden" id="edit-shift-id" />
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data</label><input type="date" id="shift-date" class="w-full p-2 border rounded" required /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo Turno</label>
           <select id="shift-type" class="w-full p-2 border rounded" required>
             <option value="">Seleziona...</option>
             <option value="sera">Sera</option>
@@ -384,10 +374,7 @@
             <option value="riposo">Riposo</option>
           </select>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
-          <textarea id="shift-notes" class="w-full p-2 border rounded" rows="3"></textarea>
-        </div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Note</label><textarea id="shift-notes" class="w-full p-2 border rounded" rows="3"></textarea></div>
         <div class="mt-4 flex justify-end gap-2">
           <button type="button" onclick="closeModal('shift-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
           <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Salva</button>
@@ -396,22 +383,15 @@
     </div>
   </div>
 
-  <!-- Add Allowance Modal -->
-  <div id="allowance-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="allowance-modal-title">
+  <div id="allowance-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
       <div class="flex justify-between items-center mb-4">
-        <h3 id="allowance-modal-title" class="text-lg font-semibold">Aggiungi Indennità</h3>
-        <button onclick="closeModal('allowance-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
-          <i class="fas fa-times"></i>
-        </button>
+        <h3 class="text-lg font-semibold">Aggiungi Indennità</h3>
+        <button onclick="closeModal('allowance-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
       </div>
       <form onsubmit="saveAllowance(event)" class="space-y-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-          <input type="date" id="allowance-date" class="w-full p-2 border rounded" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Indennità</label>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data</label><input type="date" id="allowance-date" class="w-full p-2 border rounded" required /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo Indennità</label>
           <select id="allowance-type" class="w-full p-2 border rounded" required>
             <option value="">Seleziona...</option>
             <option value="ordine-pubblico">Ordine Pubblico</option>
@@ -425,14 +405,8 @@
             <option value="straordinario-programmato">Straordinario Programmato</option>
           </select>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Importo (€)</label>
-          <input type="number" id="allowance-amount" class="w-full p-2 border rounded" step="0.01" min="0" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
-          <textarea id="allowance-notes" class="w-full p-2 border rounded" rows="3"></textarea>
-        </div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Importo (€)</label><input type="number" id="allowance-amount" class="w-full p-2 border rounded" step="0.01" min="0" required /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Note</label><textarea id="allowance-notes" class="w-full p-2 border rounded" rows="3"></textarea></div>
         <div class="mt-4 flex justify-end gap-2">
           <button type="button" onclick="closeModal('allowance-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
           <button type="submit" class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">Salva</button>
@@ -441,26 +415,17 @@
     </div>
   </div>
 
-  <!-- Add Absence Modal -->
-  <div id="absence-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="absence-modal-title">
+  <div id="absence-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
       <div class="flex justify-between items-center mb-4">
-        <h3 id="absence-modal-title" class="text-lg font-semibold">Aggiungi Assenza</h3>
-        <button onclick="closeModal('absence-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
-          <i class="fas fa-times"></i>
-        </button>
+        <h3 class="text-lg font-semibold" id="absence-modal-title">Aggiungi Assenza</h3>
+        <button onclick="closeModal('absence-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
       </div>
       <form onsubmit="saveAbsence(event)" class="space-y-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
-          <input type="date" id="absence-start" class="w-full p-2 border rounded" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
-          <input type="date" id="absence-end" class="w-full p-2 border rounded" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Assenza</label>
+        <input type="hidden" id="edit-absence-id" />
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label><input type="date" id="absence-start" class="w-full p-2 border rounded" required /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data Fine</label><input type="date" id="absence-end" class="w-full p-2 border rounded" required /></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo Assenza</label>
           <select id="absence-type" class="w-full p-2 border rounded" required>
             <option value="">Seleziona...</option>
             <option value="congedo-ordinario">Congedo Ordinario</option>
@@ -480,24 +445,26 @@
             <option value="permesso-sindacale">Permesso Sindacale</option>
           </select>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
-          <textarea id="absence-notes" class="w-full p-2 border rounded" rows="3"></textarea>
-        </div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Note</label><textarea id="absence-notes" class="w-full p-2 border rounded" rows="3"></textarea></div>
         <div class="mt-4 flex justify-end gap-2">
           <button type="button" onclick="closeModal('absence-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
-          <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Salva</button>
+          <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Salva</button>
         </div>
       </form>
     </div>
   </div>
 
   <script>
-  // ====== PWA Variables ======
+  // ====== CONFIG EmailJS (facoltativo) ======
+  const EMAILJS_PUBLIC_KEY = "INSERISCI_PUBLIC_KEY";
+  const EMAILJS_SERVICE_ID = "INSERISCI_SERVICE_ID";
+  const EMAILJS_TEMPLATE_ID = "INSERISCI_TEMPLATE_ID";
+
+  // ====== PWA Vars ======
   let deferredPrompt;
   let isOnline = navigator.onLine;
 
-  // ====== Data Stores ======
+  // ====== Stores ======
   let currentUser = null;
   let currentDate = new Date();
   let shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
@@ -505,29 +472,57 @@
   let absences = JSON.parse(localStorage.getItem('absences') || '[]');
   let monthlyChart = null;
 
-  // ====== Registered Users (demo) ======
+  // ====== Registered Users & OTP ======
   let registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
   let currentLoginEmail = '';
   let generatedOTP = '';
 
-  // ====== PWA Manifest + Service Worker ======
+  function setOtpForEmail(email, code, ttlMinutes = 10) {
+    const all = JSON.parse(localStorage.getItem('otp_store') || '{}');
+    all[email] = { code, exp: Date.now() + ttlMinutes * 60 * 1000 };
+    localStorage.setItem('otp_store', JSON.stringify(all));
+  }
+  function getOtpForEmail(email) {
+    const all = JSON.parse(localStorage.getItem('otp_store') || '{}');
+    const entry = all[email];
+    if (!entry) return null;
+    if (Date.now() > entry.exp) {
+      delete all[email];
+      localStorage.setItem('otp_store', JSON.stringify(all));
+      return null;
+    }
+    return entry.code;
+  }
+
+  // ====== EmailJS ======
+  function initEmailJS(){
+    if (window.emailjs && EMAILJS_PUBLIC_KEY && EMAILJS_PUBLIC_KEY !== "INSERISCI_PUBLIC_KEY") {
+      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    }
+  }
+  async function sendOtpEmail(toEmail, toName, otp) {
+    if (!window.emailjs ||
+        !EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID ||
+        EMAILJS_PUBLIC_KEY === "INSERISCI_PUBLIC_KEY" ||
+        EMAILJS_SERVICE_ID === "INSERISCI_SERVICE_ID" ||
+        EMAILJS_TEMPLATE_ID === "INSERISCI_TEMPLATE_ID") {
+      throw new Error("Config EmailJS mancante.");
+    }
+    const params = { to_email: toEmail, to_name: toName || toEmail, otp_code: otp, app_name: "TurniService" };
+    return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+  }
+
+  // ====== PWA Manifest + SW ======
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      // Inject manifest dynamically
       const manifest = {
         name: "TurniService - Gestione Turni Forze dell'Ordine",
         short_name: "TurniService",
-        description: "Applicazione per la gestione dei turni e delle indennità delle Forze dell'Ordine",
         start_url: "./",
         display: "standalone",
         theme_color: "#1e40af",
         background_color: "#f3f4f6",
-        orientation: "portrait",
-        categories: ["productivity", "business"],
-        icons: [
-          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\" fill=\"#1e40af\"><circle cx=\"256\" cy=\"256\" r=\"256\" fill=\"#1e40af\"/><path d=\"M256 100l50 25v150l-50 25-50-25V125l50-25z\" fill=\"white\"/></svg>'), sizes: "512x512", type: "image/svg+xml" },
-          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 192\" fill=\"#1e40af\"><circle cx=\"96\" cy=\"96\" r=\"96\" fill=\"#1e40af\"/><path d=\"M96 40l24 12v75l-24 12-24-12V52l24-12z\" fill=\"white\"/></svg>'), sizes: "192x192", type: "image/svg+xml" }
-        ]
+        orientation: "portrait"
       };
       const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
       const manifestURL = URL.createObjectURL(manifestBlob);
@@ -536,25 +531,23 @@
       link.href = manifestURL;
       document.head.appendChild(link);
 
-      // Register SW
       const swScript = `
-        const CACHE_NAME = 'turniservice-v3';
+        const CACHE_NAME = 'turniservice-v5';
         const urlsToCache = [
           './',
           'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css',
           'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css',
-          'https://cdn.jsdelivr.net/npm/chart.js'
+          'https://cdn.jsdelivr.net/npm/chart.js',
+          'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
         ];
-        self.addEventListener('install', event => {
-          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
         });
-        self.addEventListener('activate', event => {
-          event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
+        self.addEventListener('activate', e => {
+          e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
         });
-        self.addEventListener('fetch', event => {
-          event.respondWith(
-            caches.match(event.request).then(response => response || fetch(event.request).catch(() => caches.match('./')))
-          );
+        self.addEventListener('fetch', e => {
+          e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./'))));
         });
       `;
       const blob = new Blob([swScript], { type: 'application/javascript' });
@@ -563,7 +556,7 @@
     });
   }
 
-  // ====== PWA Install Prompt ======
+  // ====== PWA Install ======
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
@@ -601,169 +594,156 @@
   // ====== Auth ======
   function handleRegistration(event) {
     event.preventDefault();
-    try {
-      const form = event.target;
-      const userData = {
-        nome: form.nome.value.trim(),
-        cognome: form.cognome.value.trim(),
-        email: form.email.value.trim().toLowerCase(),
-        forza: form.forza.value,
-        grado: form.grado.value.trim(),
-        irpef: 23,
-        turnazione: 'quinta',
-        registeredAt: new Date().toISOString()
-      };
-      if (!userData.nome || !userData.cognome || !userData.email || !userData.forza || !userData.grado) {
-        alert('Compila tutti i campi.');
-        return;
-      }
-      if (registeredUsers[userData.email]) {
-        alert('Utente già registrato con questa email. Usa il login.');
-        switchToLogin();
-        document.getElementById('login-email').value = userData.email;
-        return;
-      }
-      registeredUsers[userData.email] = userData;
-      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-      alert('Registrazione completata! Ora effettua il login.');
-      switchToLogin();
-      document.getElementById('login-email').value = userData.email;
-    } catch (e) {
-      console.error(e);
-      alert('Errore durante la registrazione. Riprova.');
-    }
+    const form = event.target;
+    const userData = {
+      nome: form.nome.value.trim(),
+      cognome: form.cognome.value.trim(),
+      email: form.email.value.trim().toLowerCase(),
+      forza: form.forza.value,
+      grado: form.grado.value.trim(),
+      irpef: 23, turnazione: 'quinta', registeredAt: new Date().toISOString()
+    };
+    if (!userData.nome || !userData.cognome || !userData.email || !userData.forza || !userData.grado) { alert('Compila tutti i campi.'); return; }
+    if (registeredUsers[userData.email]) { alert('Utente già registrato con questa email. Usa il login.'); switchToLogin(); document.getElementById('login-email').value = userData.email; return; }
+    registeredUsers[userData.email] = userData;
+    localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+    alert('Registrazione completata! Ora effettua il login.');
+    switchToLogin(); document.getElementById('login-email').value = userData.email;
   }
 
-  function handleLogin(event) {
+  async function handleLogin(event) {
     event.preventDefault();
     const email = event.target.email.value.trim().toLowerCase();
-    if (!registeredUsers[email]) {
-      alert('Email non trovata. Effettua prima la registrazione.');
-      switchToRegistration();
-      return;
-    }
+    if (!registeredUsers[email]) { alert('Email non trovata. Effettua prima la registrazione.'); switchToRegistration(); return; }
+    if (!isOnline) { alert('Sei offline. Connettiti per ricevere il codice OTP.'); return; }
     currentLoginEmail = email;
-    generatedOTP = '123456'; // demo
-    showOTPForm(email);
+    generatedOTP = String(Math.floor(100000 + Math.random() * 900000));
+    setOtpForEmail(email, generatedOTP, 10);
+    try {
+      await sendOtpEmail(email, registeredUsers[email].nome || email, generatedOTP);
+      showOTPForm(email);
+    } catch (err) {
+      console.error(err);
+      alert('Impossibile inviare OTP. Verifica configurazione EmailJS.');
+    }
   }
 
   function handleOTPVerification(event) {
     event.preventDefault();
     const enteredOTP = event.target.otp.value.trim();
-    if (enteredOTP === generatedOTP) {
+    const expected = getOtpForEmail(currentLoginEmail);
+    if (enteredOTP && expected && enteredOTP === expected) {
       currentUser = registeredUsers[currentLoginEmail];
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       showMainApp();
     } else {
-      alert('Codice di verifica non valido.');
+      alert('Codice non valido o scaduto. Richiedi un nuovo codice.');
       document.getElementById('otp-code').value = '';
       document.getElementById('otp-code').focus();
     }
   }
 
-  function resendOTP() {
-    generatedOTP = '123456';
-    alert('Nuovo codice inviato a ' + currentLoginEmail);
-    const input = document.getElementById('otp-code');
-    if (input) { input.value=''; input.focus(); }
+  async function resendOTP() {
+    if (!currentLoginEmail) return;
+    if (!isOnline) { alert('Sei offline. Connettiti per inviare nuovamente il codice.'); return; }
+    generatedOTP = String(Math.floor(100000 + Math.random() * 900000));
+    setOtpForEmail(currentLoginEmail, generatedOTP, 10);
+    try {
+      await sendOtpEmail(currentLoginEmail, registeredUsers[currentLoginEmail].nome || currentLoginEmail, generatedOTP);
+      alert('Nuovo codice OTP inviato.');
+    } catch (err) { console.error(err); alert('Errore nell’invio del nuovo OTP.'); }
   }
 
-  function switchToLogin() {
-    document.getElementById('registration-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-    document.getElementById('otp-form').classList.add('hidden');
-  }
-  function switchToRegistration() {
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('registration-form').classList.remove('hidden');
-    document.getElementById('otp-form').classList.add('hidden');
-  }
-  function showOTPForm(email) {
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('otp-form').classList.remove('hidden');
-    document.getElementById('otp-email').textContent = email;
-    document.getElementById('otp-code').focus();
-  }
-  function backToLogin() {
-    document.getElementById('otp-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-    currentLoginEmail = '';
-    generatedOTP = '';
-  }
+  function switchToLogin() { document.getElementById('registration-form').classList.add('hidden'); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('otp-form').classList.add('hidden'); }
+  function switchToRegistration() { document.getElementById('login-form').classList.add('hidden'); document.getElementById('registration-form').classList.remove('hidden'); document.getElementById('otp-form').classList.add('hidden'); }
+  function showOTPForm(email) { document.getElementById('login-form').classList.add('hidden'); document.getElementById('otp-form').classList.remove('hidden'); document.getElementById('otp-email').textContent = email; document.getElementById('otp-code').focus(); }
+  function backToLogin() { document.getElementById('otp-form').classList.add('hidden'); document.getElementById('login-form').classList.remove('hidden'); currentLoginEmail = ''; generatedOTP = ''; }
 
   function initAuth() {
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) { currentUser = JSON.parse(savedUser); showMainApp(); return; }
-    const hasRegisteredUsers = Object.keys(registeredUsers).length > 0;
-    if (hasRegisteredUsers) { switchToLogin(); } else { switchToRegistration(); }
+    Object.keys(registeredUsers).length > 0 ? switchToLogin() : switchToRegistration();
   }
 
   function showMainApp() {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
-    closeAllModals();
-    cleanInterface();
-    updateDashboard();
-    generateCalendar();
-    updateAgenda();
-    updateAbsencesSummary();
-    initChart();
+    updateConnectionStatus();
+    updateDashboard(); generateCalendar(); updateAgenda(); updateAbsencesSummary(); initChart();
   }
 
-  function logout() {
-    localStorage.removeItem('currentUser');
-    location.reload();
-  }
+  function logout() { localStorage.removeItem('currentUser'); location.reload(); }
 
   // ====== UI Helpers ======
-  function cleanInterface() {
-    document.querySelectorAll('[id$="-modal"]').forEach(m => m.classList.add('hidden'));
-  }
-
   function showTab(tabName, ev) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.remove('border-blue-500','text-blue-600');
-      btn.classList.add('border-transparent','text-gray-600');
-      btn.setAttribute('aria-selected','false');
-    });
+    document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('border-blue-500','text-blue-600'); btn.classList.add('border-transparent','text-gray-600'); btn.setAttribute('aria-selected','false'); });
     document.getElementById(`${tabName}-tab`).classList.remove('hidden');
-    if (ev && ev.target) {
-      ev.target.classList.add('border-blue-500','text-blue-600');
-      ev.target.classList.remove('border-transparent','text-gray-600');
-      ev.target.setAttribute('aria-selected','true');
-    }
+    if (ev && ev.target) { ev.target.classList.add('border-blue-500','text-blue-600'); ev.target.classList.remove('border-transparent','text-gray-600'); ev.target.setAttribute('aria-selected','true'); }
   }
-
-  function showProfile(){ 
-    document.getElementById('profile-forza').value = getForceLabel(currentUser.forza);
-    document.getElementById('profile-grado').value = currentUser.grado;
-    document.getElementById('profile-irpef').value = currentUser.irpef || 23;
-    document.getElementById('profile-turnazione').value = currentUser.turnazione || 'quinta';
-    document.getElementById('profile-modal').classList.remove('hidden');
-  }
-  function addShift(){ document.getElementById('shift-date').value = new Date().toISOString().split('T')[0]; document.getElementById('shift-modal').classList.remove('hidden'); }
-  function addAllowance(){ document.getElementById('allowance-date').value = new Date().toISOString().split('T')[0]; document.getElementById('allowance-modal').classList.remove('hidden'); }
-  function addAbsence(){ const d=new Date().toISOString().split('T')[0]; document.getElementById('absence-start').value=d; document.getElementById('absence-end').value=d; document.getElementById('absence-modal').classList.remove('hidden'); }
+  function showProfile(){ document.getElementById('profile-forza').value=getForceLabel(currentUser.forza); document.getElementById('profile-grado').value=currentUser.grado; document.getElementById('profile-irpef').value=currentUser.irpef||23; document.getElementById('profile-turnazione').value=currentUser.turnazione||'quinta'; document.getElementById('profile-modal').classList.remove('hidden'); }
+  function addShift(){ document.getElementById('edit-shift-id').value=''; document.getElementById('shift-modal-title').textContent='Aggiungi Turno'; document.getElementById('shift-date').value=new Date().toISOString().split('T')[0]; document.getElementById('shift-type').value=''; document.getElementById('shift-notes').value=''; document.getElementById('shift-modal').classList.remove('hidden'); }
+  function addAbsence(){ document.getElementById('edit-absence-id').value=''; document.getElementById('absence-modal-title').textContent='Aggiungi Assenza'; const d=new Date().toISOString().split('T')[0]; document.getElementById('absence-start').value=d; document.getElementById('absence-end').value=d; document.getElementById('absence-type').value=''; document.getElementById('absence-notes').value=''; document.getElementById('absence-modal').classList.remove('hidden'); }
   function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
-  function closeAllModals(){ document.querySelectorAll('[id$=\"-modal\"]').forEach(m=>m.classList.add('hidden')); }
 
-  // ====== Data Actions ======
+  function showOfflineNotification(message){
+    const n = document.createElement('div'); n.className='fixed top-16 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'; n.innerHTML = `<i class="fas fa-info-circle mr-2"></i>${message}`; document.body.appendChild(n); setTimeout(()=>n.remove(),3000);
+  }
+
+  // ====== Unicità evento per giorno ======
+  function dayHasAnyEvent(dateStr){
+    const hasShift = shifts.some(s => s.date === dateStr);
+    const hasAbs = absences.some(a => isDateInRange(dateStr, a.startDate, a.endDate));
+    return hasShift || hasAbs;
+  }
+  function checkAbsenceRangeFree(startStr, endStr, editingId=null){
+    const days = enumerateDates(startStr, endStr);
+    for (const d of days){
+      if (shifts.some(s => s.date === d)) return false;
+      if (absences.some(a => a.id !== editingId && isDateInRange(d, a.startDate, a.endDate))) return false;
+    }
+    return true;
+  }
+  function isDateInRange(dateStr, startStr, endStr){
+    const d = new Date(dateStr); const s = new Date(startStr); const e = new Date(endStr);
+    d.setHours(0,0,0,0); s.setHours(0,0,0,0); e.setHours(0,0,0,0);
+    return d >= s && d <= e;
+  }
+  function enumerateDates(startStr, endStr){
+    const res=[]; const s=new Date(startStr); const e=new Date(endStr);
+    const d=new Date(s);
+    while(d <= e){ res.push(formatDate(d)); d.setDate(d.getDate()+1); }
+    return res;
+  }
+
+  // ====== Save / Update / Delete ======
   function saveShift(event){
     event.preventDefault();
-    const shift = {
-      id: Date.now(),
-      date: document.getElementById('shift-date').value,
-      type: document.getElementById('shift-type').value,
-      notes: document.getElementById('shift-notes').value,
-      synced: isOnline
-    };
-    shifts.push(shift);
+    const idEditing = document.getElementById('edit-shift-id').value || null;
+    const dateStr = document.getElementById('shift-date').value;
+    const type = document.getElementById('shift-type').value;
+    const notes = document.getElementById('shift-notes').value;
+
+    const conflict = absences.some(a => isDateInRange(dateStr, a.startDate, a.endDate)) ||
+                     shifts.some(s => s.date === dateStr && (!idEditing || s.id != idEditing));
+    if (conflict){ alert('Esiste già un evento (turno o assenza) in questa data. Modifica o cancella quello esistente.'); return; }
+
+    if (idEditing){
+      const idx = shifts.findIndex(s => s.id == idEditing);
+      if (idx > -1){ shifts[idx] = { ...shifts[idx], date: dateStr, type, notes, synced: isOnline }; }
+    } else {
+      shifts.push({ id: Date.now(), date: dateStr, type, notes, synced: isOnline });
+    }
     localStorage.setItem('shifts', JSON.stringify(shifts));
     closeModal('shift-modal');
     updateDashboard(); generateCalendar(); updateAgenda();
-    if (!isOnline) showOfflineNotification('Turno salvato offline');
+  }
+
+  function deleteShiftById(id){
+    shifts = shifts.filter(s => s.id !== id);
+    localStorage.setItem('shifts', JSON.stringify(shifts));
+    updateDashboard(); generateCalendar(); updateAgenda();
   }
 
   function saveAllowance(event){
@@ -778,26 +758,35 @@
     };
     allowances.push(allowance);
     localStorage.setItem('allowances', JSON.stringify(allowances));
-    closeModal('allowance-modal');
-    updateDashboard(); updateChart();
-    if (!isOnline) showOfflineNotification('Indennità salvata offline');
+    closeModal('allowance-modal'); updateDashboard(); updateChart();
   }
 
   function saveAbsence(event){
     event.preventDefault();
-    const absence = {
-      id: Date.now(),
-      startDate: document.getElementById('absence-start').value,
-      endDate: document.getElementById('absence-end').value,
-      type: document.getElementById('absence-type').value,
-      notes: document.getElementById('absence-notes').value,
-      synced: isOnline
-    };
-    absences.push(absence);
+    const idEditing = document.getElementById('edit-absence-id').value || null;
+    const startStr = document.getElementById('absence-start').value;
+    const endStr = document.getElementById('absence-end').value;
+    const type = document.getElementById('absence-type').value;
+    const notes = document.getElementById('absence-notes').value;
+
+    if (!checkAbsenceRangeFree(startStr, endStr, idEditing)){
+      alert('Intervallo assenza in conflitto con altri turni/assenze.'); return;
+    }
+
+    if (idEditing){
+      const idx = absences.findIndex(a => a.id == idEditing);
+      if (idx > -1){ absences[idx] = { ...absences[idx], startDate: startStr, endDate: endStr, type, notes, synced: isOnline }; }
+    } else {
+      absences.push({ id: Date.now(), startDate: startStr, endDate: endStr, type, notes, synced: isOnline });
+    }
     localStorage.setItem('absences', JSON.stringify(absences));
-    closeModal('absence-modal');
-    updateAbsencesSummary();
-    if (!isOnline) showOfflineNotification('Assenza salvata offline');
+    closeModal('absence-modal'); updateAbsencesSummary(); generateCalendar(); updateAgenda();
+  }
+
+  function deleteAbsenceById(id){
+    absences = absences.filter(a => a.id !== id);
+    localStorage.setItem('absences', JSON.stringify(absences));
+    updateAbsencesSummary(); generateCalendar(); updateAgenda();
   }
 
   function updateProfile(event){
@@ -808,14 +797,6 @@
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
     closeModal('profile-modal');
-  }
-
-  function showOfflineNotification(message){
-    const n = document.createElement('div');
-    n.className='fixed top-16 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-    n.innerHTML = `<i class="fas fa-info-circle mr-2"></i>${message}`;
-    document.body.appendChild(n);
-    setTimeout(()=>n.remove(),3000);
   }
 
   // ====== Dashboard ======
@@ -849,76 +830,179 @@
 
     for(let i=0;i<42;i++){
       const curr = new Date(startDate); curr.setDate(startDate.getDate()+i);
-      const div = document.createElement('div'); div.className='calendar-day p-2 text-sm';
+      const currStr = formatDate(curr);
+      const div = document.createElement('div'); div.className='calendar-day p-2 text-sm'; div.setAttribute('data-date', currStr);
       if (curr.getMonth()!==month) div.classList.add('text-gray-400');
       if (curr.toDateString()===new Date().toDateString()) div.classList.add('today');
       const num=document.createElement('div'); num.className='font-semibold mb-1'; num.textContent=curr.getDate(); div.appendChild(num);
-      const dayShifts = shifts.filter(s=> s.date === formatDate(curr));
-      const dayAllow = allowances.filter(a=> a.date === formatDate(curr));
-      dayShifts.forEach(shift=>{
+
+      const dayShift = shifts.find(s=> s.date === currStr);
+      if (dayShift){
         const sdiv=document.createElement('div');
-        sdiv.className=`shift-${shift.type} text-xs p-1 rounded mb-1`;
-        sdiv.textContent = shift.type.charAt(0).toUpperCase()+shift.type.slice(1);
+        sdiv.className=`shift-${dayShift.type} text-xs p-1 rounded mb-1`;
+        sdiv.textContent = dayShift.type.charAt(0).toUpperCase()+dayShift.type.slice(1);
         div.appendChild(sdiv);
-      });
-      if (dayAllow.length>0){
-        const total = dayAllow.reduce((sum,a)=>sum+a.amount,0);
-        const adiv=document.createElement('div'); adiv.className='text-xs text-green-700 font-semibold'; adiv.textContent=`€${total.toFixed(2)}`;
+      }
+
+      const dayAbs = absences.find(a => isDateInRange(currStr, a.startDate, a.endDate));
+      if (dayAbs){
+        const adiv=document.createElement('div');
+        adiv.className = `absence-badge absence-${dayAbs.type.replace(/_/g,'-')}`;
+        adiv.textContent = getAbsenceTypeLabel(dayAbs.type);
         div.appendChild(adiv);
       }
+
+      div.addEventListener('click', () => openDayActions(currStr));
       grid.appendChild(div);
     }
   }
+
   function previousMonth(){ currentDate.setMonth(currentDate.getMonth()-1); generateCalendar(); }
   function nextMonth(){ currentDate.setMonth(currentDate.getMonth()+1); generateCalendar(); }
 
-  // ====== Agenda ======
+  function openDayActions(dateStr){
+    const container = document.getElementById('day-actions-content');
+    const title = document.getElementById('day-actions-title');
+    title.textContent = `Azioni per ${new Intl.DateTimeFormat('it-IT',{ day:'numeric', month:'long', year:'numeric'}).format(new Date(dateStr))}`;
+    container.innerHTML='';
+
+    const s = shifts.find(x => x.date === dateStr);
+    const a = absences.find(x => isDateInRange(dateStr, x.startDate, x.endDate));
+
+    if (!s && !a){
+      container.innerHTML = `
+        <p class="text-gray-600">Nessun evento in questa data.</p>
+        <div class="flex gap-2">
+          <button class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700" onclick="prefillShift('${dateStr}')"><i class="fas fa-plus mr-1"></i>Aggiungi Turno</button>
+          <button class="bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700" onclick="prefillAbsence('${dateStr}')"><i class="fas fa-calendar-times mr-1"></i>Aggiungi Assenza</button>
+        </div>`;
+    } else if (s){
+      container.innerHTML = `
+        <div class="space-y-2">
+          <p><strong>Turno:</strong> ${s.type}</p>
+          ${s.notes ? `<p class="text-sm text-gray-600">${s.notes}</p>` : ''}
+          <div class="flex gap-2">
+            <button class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700" onclick="editShift(${s.id})"><i class="fas fa-edit mr-1"></i>Modifica</button>
+            <button class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700" onclick="confirmDeleteShift(${s.id})"><i class="fas fa-trash mr-1"></i>Elimina</button>
+          </div>
+        </div>`;
+    } else if (a){
+      container.innerHTML = `
+        <div class="space-y-2">
+          <p><strong>Assenza:</strong> ${getAbsenceTypeLabel(a.type)}</p>
+          <p class="text-sm text-gray-600">${formatDateLong(new Date(a.startDate))} → ${formatDateLong(new Date(a.endDate))}</p>
+          ${a.notes ? `<p class="text-sm text-gray-600">${a.notes}</p>` : ''}
+          <div class="flex gap-2">
+            <button class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700" onclick="editAbsence(${a.id})"><i class="fas fa-edit mr-1"></i>Modifica</button>
+            <button class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700" onclick="confirmDeleteAbsence(${a.id})"><i class="fas fa-trash mr-1"></i>Elimina</button>
+          </div>
+        </div>`;
+    }
+    document.getElementById('day-actions-modal').classList.remove('hidden');
+  }
+
+  function prefillShift(dateStr){ addShift(); document.getElementById('shift-date').value = dateStr; }
+  function prefillAbsence(dateStr){ addAbsence(); document.getElementById('absence-start').value = dateStr; document.getElementById('absence-end').value = dateStr; }
+  function editShift(id){
+    const s = shifts.find(x => x.id === id); if (!s) return;
+    document.getElementById('edit-shift-id').value = s.id;
+    document.getElementById('shift-modal-title').textContent = 'Modifica Turno';
+    document.getElementById('shift-date').value = s.date;
+    document.getElementById('shift-type').value = s.type;
+    document.getElementById('shift-notes').value = s.notes || '';
+    document.getElementById('shift-modal').classList.remove('hidden');
+  }
+  function editAbsence(id){
+    const a = absences.find(x => x.id === id); if (!a) return;
+    document.getElementById('edit-absence-id').value = a.id;
+    document.getElementById('absence-modal-title').textContent = 'Modifica Assenza';
+    document.getElementById('absence-start').value = a.startDate;
+    document.getElementById('absence-end').value = a.endDate;
+    document.getElementById('absence-type').value = a.type;
+    document.getElementById('absence-notes').value = a.notes || '';
+    document.getElementById('absence-modal').classList.remove('hidden');
+  }
+  function confirmDeleteShift(id){
+    if (confirm('Eliminare questo turno?')){ deleteShiftById(id); closeModal('day-actions-modal'); }
+  }
+  function confirmDeleteAbsence(id){
+    if (confirm('Eliminare questa assenza?')){ deleteAbsenceById(id); closeModal('day-actions-modal'); }
+  }
+
+  // ====== Agenda (turni + assenze) ======
   function updateAgenda(){
     const list = document.getElementById('agenda-list'); list.innerHTML='';
-    const today = new Date(); const nextMonth = new Date(); nextMonth.setDate(today.getDate()+30);
-    const upcoming = shifts.filter(s=>{const d=new Date(s.date); return d>=today && d<=nextMonth;}).sort((a,b)=> new Date(a.date)-new Date(b.date));
-    if (upcoming.length===0){ list.innerHTML='<p class="text-center text-gray-500 py-8">Nessun turno programmato nei prossimi 30 giorni.</p>'; return; }
-    upcoming.forEach(shift=>{
-      const item=document.createElement('div'); item.className='border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow';
-      const d=new Date(shift.date); const dayAllow=allowances.filter(a=>a.date===shift.date); const tot=dayAllow.reduce((s,a)=>s+a.amount,0);
-      const gcalUrl = createGoogleCalendarUrl({title:`Turno ${shift.type}`, date:d, notes:shift.notes||''});
-      item.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div>
-            <h4 class="font-semibold text-lg">${formatDateLong(d)}</h4>
-            <p class="text-gray-600 shift-${shift.type}">${shift.type.charAt(0).toUpperCase()+shift.type.slice(1)}</p>
-            ${shift.notes ? `<p class="text-sm text-gray-500 mt-1">${shift.notes}</p>` : ''}
-            <div class="mt-2">
-              <a href="${gcalUrl}" target="_blank" rel="noopener" class="text-xs text-blue-600 underline"><i class="fab fa-google mr-1"></i>Aggiungi a Google Calendar</a>
+    const today = new Date(); today.setHours(0,0,0,0);
+    const monthAhead = new Date(today); monthAhead.setDate(today.getDate()+30);
+
+    const items = [];
+
+    shifts.forEach(s => {
+      const d = new Date(s.date);
+      if (d >= today && d <= monthAhead){
+        items.push({
+          sortDate: d, type: 'shift',
+          title: `Turno ${s.type}`, date: d, id: s.id, notes: s.notes || '',
+          allowancesCount: allowances.filter(a => a.date === s.date).length,
+          allowancesTotal: allowances.filter(a => a.date === s.date).reduce((sum,a)=>sum+a.amount,0)
+        });
+      }
+    });
+
+    absences.forEach(a => {
+      const s = new Date(a.startDate); const e = new Date(a.endDate);
+      if (e >= today && s <= monthAhead){
+        items.push({
+          sortDate: s, type: 'absence',
+          title: getAbsenceTypeLabel(a.type), date: s, id: a.id, notes: a.notes || '', endDate: e
+        });
+      }
+    });
+
+    items.sort((x,y)=> x.sortDate - y.sortDate);
+
+    if (items.length===0){ list.innerHTML='<p class="text-center text-gray-500 py-8">Nessun elemento in agenda per i prossimi 30 giorni.</p>'; return; }
+
+    items.forEach(it => {
+      const div = document.createElement('div'); div.className='border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow';
+      if (it.type==='shift'){
+        div.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="font-semibold text-lg">${formatDateLong(it.date)}</h4>
+              <p class="text-gray-700">${it.title}</p>
+              ${it.notes?`<p class="text-sm text-gray-500 mt-1">${it.notes}</p>`:''}
             </div>
-          </div>
-          <div class="text-right">${tot>0?`<p class="text-green-600 font-semibold">€${tot.toFixed(2)}</p>`:''}<p class="text-xs text-gray-400">${dayAllow.length} indennità</p></div>
-        </div>`;
-      list.appendChild(item);
+            <div class="text-right">
+              ${it.allowancesTotal>0?`<p class="text-green-600 font-semibold">€${it.allowancesTotal.toFixed(2)}</p>`:''}
+              <p class="text-xs text-gray-400">${it.allowancesCount} indennità</p>
+              <div class="mt-2 flex gap-2 justify-end">
+                <button class="text-blue-600 text-sm underline" onclick="editShift(${it.id})">Modifica</button>
+                <button class="text-red-600 text-sm underline" onclick="confirmDeleteShift(${it.id})">Elimina</button>
+              </div>
+            </div>
+          </div>`;
+      } else {
+        div.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="font-semibold text-lg">${formatDateLong(it.date)} → ${formatDateLong(it.endDate)}</h4>
+              <p class="text-gray-700">${it.title}</p>
+              ${it.notes?`<p class="text-sm text-gray-500 mt-1">${it.notes}</p>`:''}
+            </div>
+            <div class="text-right">
+              <div class="mt-2 flex gap-2 justify-end">
+                <button class="text-blue-600 text-sm underline" onclick="editAbsence(${it.id})">Modifica</button>
+                <button class="text-red-600 text-sm underline" onclick="confirmDeleteAbsence(${it.id})">Elimina</button>
+              </div>
+            </div>
+          </div>`;
+      }
+      list.appendChild(div);
     });
   }
 
-  function createGoogleCalendarUrl({title, date, notes}){
-    // All-day event for the given date
-    const start = formatICSDate(date);
-    const endDate = new Date(date); endDate.setDate(endDate.getDate()+1);
-    const end = formatICSDate(endDate);
-    const params = new URLSearchParams({
-      action:'TEMPLATE',
-      text: title,
-      dates: `${start}/${end}`,
-      details: notes || 'Turno creato da TurniService'
-    });
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  }
-  function formatICSDate(d){
-    const y=d.getFullYear();
-    const m=String(d.getMonth()+1).padStart(2,'0');
-    const da=String(d.getDate()).padStart(2,'0');
-    return `${y}${m}${da}`;
-  }
-
-  // ====== Absences ======
+  // ====== Absences Summary ======
   function updateAbsencesSummary(){
     const y = new Date().getFullYear();
     const ord = absences.filter(a=> a.type==='congedo-ordinario' && new Date(a.startDate).getFullYear()===y).length;
@@ -942,7 +1026,13 @@
             <p class="text-gray-600">${formatDateLong(s)} - ${formatDateLong(e)}</p>
             ${abs.notes?`<p class="text-sm text-gray-500 mt-1">${abs.notes}</p>`:''}
           </div>
-          <div class="text-right"><p class="font-semibold">${duration} giorn${duration===1?'o':'i'}</p></div>
+          <div class="text-right">
+            <p class="font-semibold">${duration} giorn${duration===1?'o':'i'}</p>
+            <div class="mt-2 flex gap-2 justify-end">
+              <button class="text-blue-600 text-sm underline" onclick="editAbsence(${abs.id})">Modifica</button>
+              <button class="text-red-600 text-sm underline" onclick="confirmDeleteAbsence(${abs.id})">Elimina</button>
+            </div>
+          </div>
         </div>`;
       list.appendChild(div);
     });
@@ -983,6 +1073,10 @@
           <div class="flex items-center mb-2"><i class="fas fa-clock text-blue-500 mr-2"></i><span class="font-semibold">Turno</span></div>
           <p class="text-gray-600">${formatDateLong(d)} - ${r.data.type}</p>
           ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
+          <div class="mt-2">
+            <button class="text-blue-600 text-sm underline" onclick="editShift(${r.data.id})">Modifica</button>
+            <button class="text-red-600 text-sm underline" onclick="confirmDeleteShift(${r.data.id})">Elimina</button>
+          </div>
         `;
       } else if (r.type==='absence'){
         const e=new Date(r.data.endDate);
@@ -992,6 +1086,10 @@
           <p class="text-gray-600">${getAbsenceTypeLabel(r.data.type)}</p>
           <p class="text-gray-600">${formatDateLong(d)} - ${formatDateLong(e)} (${dur} giorni)</p>
           ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
+          <div class="mt-2">
+            <button class="text-blue-600 text-sm underline" onclick="editAbsence(${r.data.id})">Modifica</button>
+            <button class="text-red-600 text-sm underline" onclick="confirmDeleteAbsence(${r.data.id})">Elimina</button>
+          </div>
         `;
       } else if (r.type==='allowance'){
         content = `
@@ -1020,11 +1118,7 @@
     monthlyChart = new Chart(ctx, {
       type: 'line',
       data: { labels, datasets: [{ label: 'Indennità Mensili (€)', data, borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.1, fill: true }]},
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, ticks: { callback: (v)=> '€'+Number(v).toFixed(2) } } },
-        plugins: { legend: { display:true, position:'top' } }
-      }
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: (v)=> '€'+Number(v).toFixed(2) } } }, plugins: { legend: { display:true, position:'top' } } }
     });
   }
   function updateChart(){
@@ -1036,18 +1130,14 @@
                               .reduce((s,a)=>s+a.amount,0);
       newData.push(total);
     }
-    monthlyChart.data.datasets[0].data = newData;
-    monthlyChart.update();
+    monthlyChart.data.datasets[0].data = newData; monthlyChart.update();
   }
 
   // ====== Backup ======
   function backupData(){
-    const backup = { user: currentUser, shifts, allowances, absences, timestamp:new Date().toISOString(), version:'3.0' };
+    const backup = { user: currentUser, shifts, allowances, absences, timestamp:new Date().toISOString(), version:'5.0' };
     const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `turniservice_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `turniservice_backup_${new Date().toISOString().split('T')[0]}.json`; link.click();
   }
 
   // ====== Utils ======
@@ -1055,7 +1145,23 @@
   function formatDateLong(date){ return new Intl.DateTimeFormat('it-IT',{ weekday:'long', year:'numeric', month:'long', day:'numeric'}).format(date); }
   function getForceLabel(code){ const map={'carabinieri':'Carabinieri','guardia-finanza':'Guardia di Finanza','polizia-stato':'Polizia di Stato','polizia-penitenziaria':'Polizia Penitenziaria'}; return map[code]||code; }
   function getAbsenceTypeLabel(type){
-    const types={'congedo-ordinario':'Congedo Ordinario','congedo-straordinario-malattia':'Congedo Straordinario per Malattia','congedo-straordinario-esami':'Congedo Straordinario per Esami','congedo-straordinario-familiari':'Congedo Straordinario per Gravi Motivi Familiari','congedo-straordinario-trasferimento':'Congedo Straordinario per Trasferimento','riposo-legge':'Riposo Legge','riposo-settimanale':'Riposo Settimanale','riposo-festivo':'Riposo Festivo','riposo-compensativo':'Riposo Compensativo','aspettativa':'Aspettativa','legge-104':'Legge 104','donazione-sangue':'Donazione Sangue','ore-studio':'Ore di Studio','permesso-breve':'Permesso Breve','permesso-sindacale':'Permesso Sindacale'};
+    const types={
+      'congedo-ordinario':'Congedo Ordinario',
+      'congedo-straordinario-malattia':'Congedo Straordinario per Malattia',
+      'congedo-straordinario-esami':'Congedo Straordinario per Esami',
+      'congedo-straordinario-familiari':'Congedo Straordinario per Gravi Motivi Familiari',
+      'congedo-straordinario-trasferimento':'Congedo Straordinario per Trasferimento',
+      'riposo-legge':'Riposo Legge',
+      'riposo-settimanale':'Riposo Settimanale',
+      'riposo-festivo':'Riposo Festivo',
+      'riposo-compensativo':'Riposo Compensativo',
+      'aspettativa':'Aspettativa',
+      'legge-104':'Legge 104',
+      'donazione-sangue':'Donazione Sangue',
+      'ore-studio':'Ore di Studio',
+      'permesso-breve':'Permesso Breve',
+      'permesso-sindacale':'Permesso Sindacale'
+    };
     return types[type]||type;
   }
   function getAllowanceTypeLabel(type){
@@ -1066,12 +1172,11 @@
   // ====== Init ======
   document.addEventListener('DOMContentLoaded', function(){
     updateConnectionStatus();
-    document.querySelectorAll('[id$="-modal"]').forEach(m=>m.classList.add('hidden'));
+    initEmailJS();
     initAuth();
   });
-  document.addEventListener('keydown', function(e){ if (e.key==='Escape') closeAllModals(); });
+  document.addEventListener('keydown', function(e){ if (e.key==='Escape') { document.getElementById('day-actions-modal').classList.add('hidden'); } });
   if ('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('controllerchange', ()=> window.location.reload()); }
   </script>
 </body>
 </html>
-
