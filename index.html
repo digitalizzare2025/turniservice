@@ -127,7 +127,7 @@
       </form>
 
       <!-- OTP Form -->
-      <form id="otp-form" onsubmit="handleOTPVerification(event)" class="space-y-4 hidden" aria-label="Verifica OTP">
+       <form id="otp-form" onsubmit="handleOTPVerification(event)" class="space-y-4 hidden" aria-label="Verifica OTP">
         <div class="text-center">
           <i class="fas fa-envelope text-3xl text-indigo-600 mb-2"></i>
           <h3 class="text-lg font-medium">Codice inviato!</h3>
@@ -136,7 +136,7 @@
         <input id="otp-code" name="otp" type="text" maxlength="6" required inputmode="numeric"
                class="w-full px-3 py-2 border rounded-md text-center text-2xl tracking-widest" placeholder="123456" aria-label="Codice OTP" />
         <div class="bg-blue-50 p-3 rounded-md text-blue-700 text-sm">
-          <strong>Info:</strong> Controlla la tua casella email per il codice OTP.
+          <strong>Demo:</strong> Usa il codice <span class="font-mono font-bold">123456</span> per accedere
         </div>
         <button type="submit" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
           <i class="fas fa-sign-in-alt mr-2"></i>Verifica e Accedi
@@ -148,6 +148,8 @@
       </form>
     </div>
   </div>
+
+
 
   <!-- Main Application -->
   <div id="main-app" class="hidden">
