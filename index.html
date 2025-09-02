@@ -1,53 +1,1081 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TurniService - Gestione Turni Forze dell'Ordine</title>
+
+  <!-- PWA Meta Tags -->
   <meta name="description" content="Applicazione per la gestione dei turni e delle indennità delle Forze dell'Ordine" />
   <meta name="theme-color" content="#1e40af" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="TurniService" />
 
+  <!-- CSS & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    body { font-family: sans-serif; }
-    .calendar-day { min-height: 100px; border: 1px solid #e5e7eb; }
-    .calendar-day.today { background-color: #eff6ff; border-color: #3b82f6; }
-    .shift-sera { background-color: #fef3c7; }
-    .shift-pomeriggio { background-color: #d1fae5; }
-    .shift-mattina { background-color: #dbeafe; }
-    .shift-notte { background-color: #e0e7ff; }
-    .shift-riposo { background-color: #f3f4f6; }
-    .install-button { position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; border-radius: 50px; padding: 12px 24px; font-weight: 600; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; }
-    .install-button:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(59, 130, 246, 0.4); }
-    .install-button.hidden { display: none; }
-    .offline-indicator { position: fixed; top: 0; left: 0; right: 0; background: #f59e0b; color: white; text-align: center; padding: 8px; font-size: 14px; z-index: 9999; transform: translateY(-100%); transition: transform 0.3s ease; }
-    .offline-indicator.show { transform: translateY(0); }
-    .sync-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ffffff; border-radius: 50%; border-top-color: transparent; animation: spin 1s ease-in-out infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .quick-actions button { min-height: 100px; color: white !important; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .quick-actions button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-    button:focus, input:focus, select:focus, textarea:focus {
-      outline: 2px solid #3b82f6;
-      outline-offset: 2px;
-    }
+    .calendar-day{min-height:120px;border:1px solid #e5e7eb}
+    .calendar-day.today{background-color:#eff6ff;border-color:#3b82f6}
+    .shift-sera{background-color:#fef3c7}
+    .shift-pomeriggio{background-color:#d1fae5}
+    .shift-mattina{background-color:#dbeafe}
+    .shift-notte{background-color:#e0e7ff}
+    .shift-riposo{background-color:#f3f4f6}
+    .install-button{position:fixed;bottom:20px;right:20px;z-index:1000;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:50px;padding:12px 24px;font-weight:600;box-shadow:0 4px 20px rgba(59,130,246,.3);transition:all .3s ease;cursor:pointer}
+    .install-button:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(59,130,246,.4)}
+    .install-button.hidden{display:none}
+    .offline-indicator{position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#fff;text-align:center;padding:8px;font-size:14px;z-index:9999;transform:translateY(-100%);transition:transform .3s ease}
+    .offline-indicator.show{transform:translateY(0)}
+    .sync-spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-radius:50%;border-top-color:transparent;animation:spin 1s ease-in-out infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .quick-actions button{min-height:100px;color:#fff!important;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+    .quick-actions button:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.15)}
+    button:focus,input:focus,select:focus,textarea:focus{outline:2px solid #3b82f6;outline-offset:2px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-900">
-  <main class="max-w-3xl mx-auto py-10 px-4">
-    <h1 class="text-3xl font-bold mb-6 text-center text-blue-800">TurniService - App PWA Completa</h1>
-    <p class="text-center mb-4 text-gray-600">Tutto il codice HTML aggiornato con design mobile, Google Calendar, offline, accessibilità, performance e registrazione funzionante.</p>
-    <p class="text-sm text-center text-gray-500">Integra i tuoi script e backend dove necessario.</p>
-  </main>
+  <!-- Offline Indicator -->
+  <div id="offline-indicator" class="offline-indicator" role="status" aria-live="polite">
+    <i class="fas fa-wifi-slash mr-2"></i>Modalità offline attiva - i dati verranno sincronizzati quando tornerai online
+  </div>
+
+  <!-- PWA Install Button -->
+  <button id="install-button" class="install-button hidden" aria-label="Installa app">
+    <i class="fas fa-download mr-2" aria-hidden="true"></i>Installa App
+  </button>
+
+  <!-- Auth Screen -->
+  <div id="auth-screen" class="min-h-screen flex items-center justify-center py-10 px-4">
+    <div class="w-full max-w-md space-y-6">
+      <div class="text-center">
+        <div class="mx-auto h-20 w-20 bg-blue-600 rounded-full flex items-center justify-center" aria-hidden="true">
+          <i class="fas fa-shield-alt text-white text-2xl"></i>
+        </div>
+        <h1 class="mt-4 text-3xl font-extrabold">TurniService</h1>
+        <p class="text-sm text-gray-600">Gestione Turni Forze dell'Ordine</p>
+        <div class="mt-2">
+          <span id="connection-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <i class="fas fa-wifi mr-1"></i>Online
+          </span>
+        </div>
+      </div>
+
+      <!-- Registration Form -->
+      <form id="registration-form" onsubmit="handleRegistration(event)" aria-label="Registrazione" class="space-y-4">
+        <div class="grid grid-cols-1 gap-3">
+          <input id="reg-nome" name="nome" type="text" required autocomplete="given-name"
+                 class="w-full px-3 py-2 border rounded-md" placeholder="Nome" aria-label="Nome" />
+          <input id="reg-cognome" name="cognome" type="text" required autocomplete="family-name"
+                 class="w-full px-3 py-2 border rounded-md" placeholder="Cognome" aria-label="Cognome" />
+          <input id="reg-email" name="email" type="email" required autocomplete="email"
+                 class="w-full px-3 py-2 border rounded-md" placeholder="Email istituzionale" aria-label="Email" />
+          <select id="reg-forza" name="forza" required class="w-full px-3 py-2 border rounded-md" aria-label="Forza di appartenenza">
+            <option value="">Seleziona Forza di Appartenenza</option>
+            <optgroup label="Forze Armate">
+              <option value="carabinieri">Carabinieri</option>
+              <option value="guardia-finanza">Guardia di Finanza</option>
+            </optgroup>
+            <optgroup label="Forze dell'Ordine">
+              <option value="polizia-stato">Polizia di Stato</option>
+              <option value="polizia-penitenziaria">Polizia Penitenziaria</option>
+            </optgroup>
+          </select>
+          <input id="reg-grado" name="grado" type="text" required class="w-full px-3 py-2 border rounded-md" placeholder="Grado" aria-label="Grado" />
+        </div>
+        <button type="submit" id="btn-registrati" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
+          <i class="fas fa-user-plus mr-2"></i>Registrati
+        </button>
+        <p class="text-center text-sm">
+          Hai già un account?
+          <button type="button" onclick="switchToLogin()" class="text-indigo-600 hover:text-indigo-500 underline">Accedi</button>
+        </p>
+      </form>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)" aria-label="Login" class="space-y-4 hidden">
+        <input id="login-email" name="email" type="email" required autocomplete="email"
+               class="w-full px-3 py-2 border rounded-md" placeholder="Email istituzionale" aria-label="Email" />
+        <button type="submit" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
+          <i class="fas fa-paper-plane mr-2"></i>Invia Codice di Verifica
+        </button>
+        <p class="text-center text-sm">
+          Non hai un account?
+          <button type="button" onclick="switchToRegistration()" class="text-indigo-600 hover:text-indigo-500 underline">Registrati</button>
+        </p>
+      </form>
+
+      <!-- OTP Form -->
+      <form id="otp-form" onsubmit="handleOTPVerification(event)" class="space-y-4 hidden" aria-label="Verifica OTP">
+        <div class="text-center">
+          <i class="fas fa-envelope text-3xl text-indigo-600 mb-2"></i>
+          <h3 class="text-lg font-medium">Codice inviato!</h3>
+          <p class="text-sm text-gray-600">Email: <span id="otp-email" class="font-medium text-indigo-600"></span></p>
+        </div>
+        <input id="otp-code" name="otp" type="text" maxlength="6" required inputmode="numeric"
+               class="w-full px-3 py-2 border rounded-md text-center text-2xl tracking-widest" placeholder="123456" aria-label="Codice OTP" />
+        <div class="bg-blue-50 p-3 rounded-md text-blue-700 text-sm">
+          <strong>Demo:</strong> Usa il codice <span class="font-mono font-bold">123456</span> per accedere
+        </div>
+        <button type="submit" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
+          <i class="fas fa-sign-in-alt mr-2"></i>Verifica e Accedi
+        </button>
+        <div class="text-center space-x-3">
+          <button type="button" onclick="resendOTP()" class="text-indigo-600 hover:text-indigo-500 text-sm underline">Invia nuovamente</button>
+          <button type="button" onclick="backToLogin()" class="text-gray-600 hover:text-gray-800 text-sm underline">Torna al login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div id="main-app" class="hidden">
+    <!-- Navigation -->
+    <nav class="bg-blue-800 text-white p-4">
+      <div class="container mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-shield-alt text-2xl"></i>
+          <h1 class="text-xl font-bold">TurniService</h1>
+          <span id="sync-status" class="hidden"><span class="sync-spinner" aria-hidden="true"></span><span class="sr-only">Sincronizzazione...</span></span>
+        </div>
+        <div class="flex items-center space-x-3 text-sm">
+          <span id="user-info" aria-live="polite"></span>
+          <span id="connection-status-nav" class="text-xs bg-green-600 px-2 py-1 rounded">Online</span>
+          <button onclick="showProfile()" class="bg-blue-700 px-3 py-1 rounded hover:bg-blue-600"><i class="fas fa-user"></i> Profilo</button>
+          <button onclick="logout()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-500"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Tabs -->
+    <div class="bg-white shadow-sm border-b border-gray-200">
+      <div class="container mx-auto">
+        <nav class="flex space-x-6 overflow-x-auto px-4" role="tablist" aria-label="Sezioni applicazione">
+          <button onclick="showTab('dashboard', event)" class="tab-btn py-3 border-b-2 border-blue-500 text-blue-600 font-medium text-sm" role="tab" aria-selected="true">Dashboard</button>
+          <button onclick="showTab('calendar', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Calendario</button>
+          <button onclick="showTab('agenda', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Agenda</button>
+          <button onclick="showTab('absences', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Assenze</button>
+          <button onclick="showTab('search', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Ricerca</button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <section id="dashboard-tab" class="tab-content container mx-auto p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-5 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100 text-green-500"><i class="fas fa-euro-sign text-xl"></i></div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Indennità Mese</p>
+              <p id="monthly-total" class="text-2xl font-semibold">€0,00</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100 text-blue-500"><i class="fas fa-clock text-xl"></i></div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Ore Straordinario</p>
+              <p id="overtime-hours" class="text-2xl font-semibold">0</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-orange-100 text-orange-500"><i class="fas fa-calendar-alt text-xl"></i></div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Giorni Congedo</p>
+              <p id="leave-days" class="text-2xl font-semibold">0</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-purple-100 text-purple-500"><i class="fas fa-user-clock text-xl"></i></div>
+            <div class="ml-4">
+              <p class="text-sm text-gray-600">Turni Mese</p>
+              <p id="shifts-count" class="text-2xl font-semibold">0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="bg-white rounded-lg shadow p-6 mb-6 quick-actions">
+        <h3 class="text-lg font-semibold mb-3">Azioni Rapide</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="addShift()" class="bg-blue-500 rounded-lg p-5 hover:bg-blue-600 focus:ring-2 focus:ring-blue-300">
+            <i class="fas fa-plus-circle text-2xl mb-1"></i><div class="font-semibold">Aggiungi Turno</div>
+          </button>
+          <button onclick="addAllowance()" class="bg-green-500 rounded-lg p-5 hover:bg-green-600 focus:ring-2 focus:ring-green-300">
+            <i class="fas fa-euro-sign text-2xl mb-1"></i><div class="font-semibold">Indennità</div>
+          </button>
+          <button onclick="addAbsence()" class="bg-orange-500 rounded-lg p-5 hover:bg-orange-600 focus:ring-2 focus:ring-orange-300">
+            <i class="fas fa-calendar-times text-2xl mb-1"></i><div class="font-semibold">Assenza</div>
+          </button>
+          <button onclick="backupData()" class="bg-purple-500 rounded-lg p-5 hover:bg-purple-600 focus:ring-2 focus:ring-purple-300">
+            <i class="fas fa-download text-2xl mb-1"></i><div class="font-semibold">Backup</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Monthly Chart -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-3">Andamento Indennità Mensili</h3>
+        <div style="height: 360px;">
+          <canvas id="monthlyChart" aria-label="Grafico indennità mensili" role="img"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar Tab -->
+    <section id="calendar-tab" class="tab-content hidden container mx-auto p-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold" id="calendar-title">Calendario</h2>
+          <div class="flex space-x-2">
+            <button onclick="previousMonth()" class="bg-gray-200 p-2 rounded hover:bg-gray-300" aria-label="Mese precedente"><i class="fas fa-chevron-left"></i></button>
+            <button onclick="nextMonth()" class="bg-gray-200 p-2 rounded hover:bg-gray-300" aria-label="Mese successivo"><i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap gap-4 mb-3 text-sm">
+          <div class="flex items-center"><span class="w-4 h-4 shift-sera mr-2"></span>Sera</div>
+          <div class="flex items-center"><span class="w-4 h-4 shift-pomeriggio mr-2"></span>Pomeriggio</div>
+          <div class="flex items-center"><span class="w-4 h-4 shift-mattina mr-2"></span>Mattina</div>
+          <div class="flex items-center"><span class="w-4 h-4 shift-notte mr-2"></span>Notte</div>
+          <div class="flex items-center"><span class="w-4 h-4 shift-riposo mr-2"></span>Riposo</div>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1" id="calendar-grid" aria-label="Griglia calendario"></div>
+      </div>
+    </section>
+
+    <!-- Agenda Tab -->
+    <section id="agenda-tab" class="tab-content hidden container mx-auto p-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Agenda</h2>
+          <button onclick="addShift()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            <i class="fas fa-plus mr-2"></i>Aggiungi Turno
+          </button>
+        </div>
+        <div id="agenda-list" class="space-y-3" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- Absences Tab -->
+    <section id="absences-tab" class="tab-content hidden container mx-auto p-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Gestione Assenze</h2>
+          <button onclick="addAbsence()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+            <i class="fas fa-plus mr-2"></i>Aggiungi Assenza
+          </button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div class="bg-blue-50 p-4 rounded-lg"><h4 class="font-semibold text-blue-800">Congedi Ordinari</h4><p id="congedi-ordinari" class="text-2xl font-bold text-blue-600">0</p></div>
+          <div class="bg-green-50 p-4 rounded-lg"><h4 class="font-semibold text-green-800">Congedi Straordinari</h4><p id="congedi-straordinari" class="text-2xl font-bold text-green-600">0</p></div>
+          <div class="bg-orange-50 p-4 rounded-lg"><h4 class="font-semibold text-orange-800">Permessi Brevi</h4><p id="permessi-brevi" class="text-2xl font-bold text-orange-600">0</p></div>
+          <div class="bg-purple-50 p-4 rounded-lg"><h4 class="font-semibold text-purple-800">Riposi Legge</h4><p id="riposi-legge" class="text-2xl font-bold text-purple-600">0</p></div>
+        </div>
+        <div id="absences-list" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- Search Tab -->
+    <section id="search-tab" class="tab-content hidden container mx-auto p-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-2xl font-bold mb-4">Ricerca</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+            <select id="search-type" class="w-full p-2 border rounded">
+              <option value="">Tutti</option>
+              <option value="shift">Turni</option>
+              <option value="absence">Assenze</option>
+              <option value="allowance">Indennità</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Data Da</label>
+            <input type="date" id="search-from" class="w-full p-2 border rounded" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Data A</label>
+            <input type="date" id="search-to" class="w-full p-2 border rounded" />
+          </div>
+        </div>
+        <button onclick="performSearch()" class="mt-1 bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600">
+          <i class="fas fa-search mr-2"></i>Cerca
+        </button>
+        <div id="search-results" class="mt-4 space-y-3"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modals -->
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="profile-modal-title" class="text-lg font-semibold">Impostazioni Profilo</h3>
+        <button onclick="closeModal('profile-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form onsubmit="updateProfile(event)" class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Forza di Appartenenza</label>
+          <input type="text" id="profile-forza" class="w-full p-2 border rounded" readonly />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Grado</label>
+          <input type="text" id="profile-grado" class="w-full p-2 border rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Aliquota IRPEF (%)</label>
+          <input type="number" id="profile-irpef" class="w-full p-2 border rounded" step="0.1" min="0" max="50" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Turnazione</label>
+          <select id="profile-turnazione" class="w-full p-2 border rounded">
+            <option value="quinta">Turno in Quinta</option>
+            <option value="terza">Turno in Terza</option>
+            <option value="ufficio">Orari da Ufficio</option>
+          </select>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('profile-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
+          <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Shift Modal -->
+  <div id="shift-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="shift-modal-title">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="shift-modal-title" class="text-lg font-semibold">Aggiungi Turno</h3>
+        <button onclick="closeModal('shift-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form onsubmit="saveShift(event)" class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+          <input type="date" id="shift-date" class="w-full p-2 border rounded" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Turno</label>
+          <select id="shift-type" class="w-full p-2 border rounded" required>
+            <option value="">Seleziona...</option>
+            <option value="sera">Sera</option>
+            <option value="pomeriggio">Pomeriggio</option>
+            <option value="mattina">Mattina</option>
+            <option value="notte">Notte</option>
+            <option value="riposo">Riposo</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
+          <textarea id="shift-notes" class="w-full p-2 border rounded" rows="3"></textarea>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('shift-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
+          <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Allowance Modal -->
+  <div id="allowance-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="allowance-modal-title">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="allowance-modal-title" class="text-lg font-semibold">Aggiungi Indennità</h3>
+        <button onclick="closeModal('allowance-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form onsubmit="saveAllowance(event)" class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+          <input type="date" id="allowance-date" class="w-full p-2 border rounded" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Indennità</label>
+          <select id="allowance-type" class="w-full p-2 border rounded" required>
+            <option value="">Seleziona...</option>
+            <option value="ordine-pubblico">Ordine Pubblico</option>
+            <option value="servizio-esterno">Servizio Esterno</option>
+            <option value="cambio-turno">Cambio Turno</option>
+            <option value="missione">Missione</option>
+            <option value="reperibilita">Reperibilità</option>
+            <option value="rimborso-forfettario">Rimborso Forfettario</option>
+            <option value="buono-pasto">Buono Pasto</option>
+            <option value="straordinario-emergente">Straordinario Emergente</option>
+            <option value="straordinario-programmato">Straordinario Programmato</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Importo (€)</label>
+          <input type="number" id="allowance-amount" class="w-full p-2 border rounded" step="0.01" min="0" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
+          <textarea id="allowance-notes" class="w-full p-2 border rounded" rows="3"></textarea>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('allowance-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
+          <button type="submit" class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Absence Modal -->
+  <div id="absence-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="absence-modal-title">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="absence-modal-title" class="text-lg font-semibold">Aggiungi Assenza</h3>
+        <button onclick="closeModal('absence-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form onsubmit="saveAbsence(event)" class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label>
+          <input type="date" id="absence-start" class="w-full p-2 border rounded" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Data Fine</label>
+          <input type="date" id="absence-end" class="w-full p-2 border rounded" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Assenza</label>
+          <select id="absence-type" class="w-full p-2 border rounded" required>
+            <option value="">Seleziona...</option>
+            <option value="congedo-ordinario">Congedo Ordinario</option>
+            <option value="congedo-straordinario-malattia">Congedo Straordinario per Malattia</option>
+            <option value="congedo-straordinario-esami">Congedo Straordinario per Esami</option>
+            <option value="congedo-straordinario-familiari">Congedo Straordinario per Gravi Motivi Familiari</option>
+            <option value="congedo-straordinario-trasferimento">Congedo Straordinario per Trasferimento</option>
+            <option value="riposo-legge">Riposo Legge</option>
+            <option value="riposo-settimanale">Riposo Settimanale</option>
+            <option value="riposo-festivo">Riposo Festivo</option>
+            <option value="riposo-compensativo">Riposo Compensativo</option>
+            <option value="aspettativa">Aspettativa</option>
+            <option value="legge-104">Legge 104</option>
+            <option value="donazione-sangue">Donazione Sangue</option>
+            <option value="ore-studio">Ore di Studio</option>
+            <option value="permesso-breve">Permesso Breve</option>
+            <option value="permesso-sindacale">Permesso Sindacale</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Note</label>
+          <textarea id="absence-notes" class="w-full p-2 border rounded" rows="3"></textarea>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('absence-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
+          <button type="submit" class="px-4 py-2 text-sm text-white bg-orange-600 rounded hover:bg-orange-700">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    // Esempio di placeholder JS
-    console.log('TurniService pronto!');
+  // ====== PWA Variables ======
+  let deferredPrompt;
+  let isOnline = navigator.onLine;
+
+  // ====== Data Stores ======
+  let currentUser = null;
+  let currentDate = new Date();
+  let shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
+  let allowances = JSON.parse(localStorage.getItem('allowances') || '[]');
+  let absences = JSON.parse(localStorage.getItem('absences') || '[]');
+  let monthlyChart = null;
+
+  // ====== Registered Users (demo) ======
+  let registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+  let currentLoginEmail = '';
+  let generatedOTP = '';
+
+  // ====== PWA Manifest + Service Worker ======
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      // Inject manifest dynamically
+      const manifest = {
+        name: "TurniService - Gestione Turni Forze dell'Ordine",
+        short_name: "TurniService",
+        description: "Applicazione per la gestione dei turni e delle indennità delle Forze dell'Ordine",
+        start_url: "./",
+        display: "standalone",
+        theme_color: "#1e40af",
+        background_color: "#f3f4f6",
+        orientation: "portrait",
+        categories: ["productivity", "business"],
+        icons: [
+          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\" fill=\"#1e40af\"><circle cx=\"256\" cy=\"256\" r=\"256\" fill=\"#1e40af\"/><path d=\"M256 100l50 25v150l-50 25-50-25V125l50-25z\" fill=\"white\"/></svg>'), sizes: "512x512", type: "image/svg+xml" },
+          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 192\" fill=\"#1e40af\"><circle cx=\"96\" cy=\"96\" r=\"96\" fill=\"#1e40af\"/><path d=\"M96 40l24 12v75l-24 12-24-12V52l24-12z\" fill=\"white\"/></svg>'), sizes: "192x192", type: "image/svg+xml" }
+        ]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+      const manifestURL = URL.createObjectURL(manifestBlob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifestURL;
+      document.head.appendChild(link);
+
+      // Register SW
+      const swScript = `
+        const CACHE_NAME = 'turniservice-v3';
+        const urlsToCache = [
+          './',
+          'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css',
+          'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css',
+          'https://cdn.jsdelivr.net/npm/chart.js'
+        ];
+        self.addEventListener('install', event => {
+          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+        });
+        self.addEventListener('activate', event => {
+          event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
+        });
+        self.addEventListener('fetch', event => {
+          event.respondWith(
+            caches.match(event.request).then(response => response || fetch(event.request).catch(() => caches.match('./')))
+          );
+        });
+      `;
+      const blob = new Blob([swScript], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(console.error);
+    });
+  }
+
+  // ====== PWA Install Prompt ======
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('install-button').classList.remove('hidden');
+  });
+  document.getElementById('install-button').addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      document.getElementById('install-button').classList.add('hidden');
+      deferredPrompt = null;
+    }
+  });
+
+  // ====== Online/Offline ======
+  window.addEventListener('online', () => { isOnline = true; updateConnectionStatus(); document.getElementById('offline-indicator').classList.remove('show'); });
+  window.addEventListener('offline', () => { isOnline = false; updateConnectionStatus(); document.getElementById('offline-indicator').classList.add('show'); });
+  function updateConnectionStatus() {
+    const el = document.getElementById('connection-status');
+    const el2 = document.getElementById('connection-status-nav');
+    if (!el || !el2) return;
+    if (isOnline) {
+      el.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800';
+      el.innerHTML = '<i class="fas fa-wifi mr-1"></i>Online';
+      el2.className = 'text-xs bg-green-600 px-2 py-1 rounded';
+      el2.textContent = 'Online';
+    } else {
+      el.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800';
+      el.innerHTML = '<i class="fas fa-wifi-slash mr-1"></i>Offline';
+      el2.className = 'text-xs bg-red-600 px-2 py-1 rounded';
+      el2.textContent = 'Offline';
+    }
+  }
+
+  // ====== Auth ======
+  function handleRegistration(event) {
+    event.preventDefault();
+    try {
+      const form = event.target;
+      const userData = {
+        nome: form.nome.value.trim(),
+        cognome: form.cognome.value.trim(),
+        email: form.email.value.trim().toLowerCase(),
+        forza: form.forza.value,
+        grado: form.grado.value.trim(),
+        irpef: 23,
+        turnazione: 'quinta',
+        registeredAt: new Date().toISOString()
+      };
+      if (!userData.nome || !userData.cognome || !userData.email || !userData.forza || !userData.grado) {
+        alert('Compila tutti i campi.');
+        return;
+      }
+      if (registeredUsers[userData.email]) {
+        alert('Utente già registrato con questa email. Usa il login.');
+        switchToLogin();
+        document.getElementById('login-email').value = userData.email;
+        return;
+      }
+      registeredUsers[userData.email] = userData;
+      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+      alert('Registrazione completata! Ora effettua il login.');
+      switchToLogin();
+      document.getElementById('login-email').value = userData.email;
+    } catch (e) {
+      console.error(e);
+      alert('Errore durante la registrazione. Riprova.');
+    }
+  }
+
+  function handleLogin(event) {
+    event.preventDefault();
+    const email = event.target.email.value.trim().toLowerCase();
+    if (!registeredUsers[email]) {
+      alert('Email non trovata. Effettua prima la registrazione.');
+      switchToRegistration();
+      return;
+    }
+    currentLoginEmail = email;
+    generatedOTP = '123456'; // demo
+    showOTPForm(email);
+  }
+
+  function handleOTPVerification(event) {
+    event.preventDefault();
+    const enteredOTP = event.target.otp.value.trim();
+    if (enteredOTP === generatedOTP) {
+      currentUser = registeredUsers[currentLoginEmail];
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      showMainApp();
+    } else {
+      alert('Codice di verifica non valido.');
+      document.getElementById('otp-code').value = '';
+      document.getElementById('otp-code').focus();
+    }
+  }
+
+  function resendOTP() {
+    generatedOTP = '123456';
+    alert('Nuovo codice inviato a ' + currentLoginEmail);
+    const input = document.getElementById('otp-code');
+    if (input) { input.value=''; input.focus(); }
+  }
+
+  function switchToLogin() {
+    document.getElementById('registration-form').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+    document.getElementById('otp-form').classList.add('hidden');
+  }
+  function switchToRegistration() {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('registration-form').classList.remove('hidden');
+    document.getElementById('otp-form').classList.add('hidden');
+  }
+  function showOTPForm(email) {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('otp-form').classList.remove('hidden');
+    document.getElementById('otp-email').textContent = email;
+    document.getElementById('otp-code').focus();
+  }
+  function backToLogin() {
+    document.getElementById('otp-form').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+    currentLoginEmail = '';
+    generatedOTP = '';
+  }
+
+  function initAuth() {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) { currentUser = JSON.parse(savedUser); showMainApp(); return; }
+    const hasRegisteredUsers = Object.keys(registeredUsers).length > 0;
+    if (hasRegisteredUsers) { switchToLogin(); } else { switchToRegistration(); }
+  }
+
+  function showMainApp() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
+    closeAllModals();
+    cleanInterface();
+    updateDashboard();
+    generateCalendar();
+    updateAgenda();
+    updateAbsencesSummary();
+    initChart();
+  }
+
+  function logout() {
+    localStorage.removeItem('currentUser');
+    location.reload();
+  }
+
+  // ====== UI Helpers ======
+  function cleanInterface() {
+    document.querySelectorAll('[id$="-modal"]').forEach(m => m.classList.add('hidden'));
+  }
+
+  function showTab(tabName, ev) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.remove('border-blue-500','text-blue-600');
+      btn.classList.add('border-transparent','text-gray-600');
+      btn.setAttribute('aria-selected','false');
+    });
+    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+    if (ev && ev.target) {
+      ev.target.classList.add('border-blue-500','text-blue-600');
+      ev.target.classList.remove('border-transparent','text-gray-600');
+      ev.target.setAttribute('aria-selected','true');
+    }
+  }
+
+  function showProfile(){ 
+    document.getElementById('profile-forza').value = getForceLabel(currentUser.forza);
+    document.getElementById('profile-grado').value = currentUser.grado;
+    document.getElementById('profile-irpef').value = currentUser.irpef || 23;
+    document.getElementById('profile-turnazione').value = currentUser.turnazione || 'quinta';
+    document.getElementById('profile-modal').classList.remove('hidden');
+  }
+  function addShift(){ document.getElementById('shift-date').value = new Date().toISOString().split('T')[0]; document.getElementById('shift-modal').classList.remove('hidden'); }
+  function addAllowance(){ document.getElementById('allowance-date').value = new Date().toISOString().split('T')[0]; document.getElementById('allowance-modal').classList.remove('hidden'); }
+  function addAbsence(){ const d=new Date().toISOString().split('T')[0]; document.getElementById('absence-start').value=d; document.getElementById('absence-end').value=d; document.getElementById('absence-modal').classList.remove('hidden'); }
+  function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+  function closeAllModals(){ document.querySelectorAll('[id$=\"-modal\"]').forEach(m=>m.classList.add('hidden')); }
+
+  // ====== Data Actions ======
+  function saveShift(event){
+    event.preventDefault();
+    const shift = {
+      id: Date.now(),
+      date: document.getElementById('shift-date').value,
+      type: document.getElementById('shift-type').value,
+      notes: document.getElementById('shift-notes').value,
+      synced: isOnline
+    };
+    shifts.push(shift);
+    localStorage.setItem('shifts', JSON.stringify(shifts));
+    closeModal('shift-modal');
+    updateDashboard(); generateCalendar(); updateAgenda();
+    if (!isOnline) showOfflineNotification('Turno salvato offline');
+  }
+
+  function saveAllowance(event){
+    event.preventDefault();
+    const allowance = {
+      id: Date.now(),
+      date: document.getElementById('allowance-date').value,
+      type: document.getElementById('allowance-type').value,
+      amount: parseFloat(document.getElementById('allowance-amount').value),
+      notes: document.getElementById('allowance-notes').value,
+      synced: isOnline
+    };
+    allowances.push(allowance);
+    localStorage.setItem('allowances', JSON.stringify(allowances));
+    closeModal('allowance-modal');
+    updateDashboard(); updateChart();
+    if (!isOnline) showOfflineNotification('Indennità salvata offline');
+  }
+
+  function saveAbsence(event){
+    event.preventDefault();
+    const absence = {
+      id: Date.now(),
+      startDate: document.getElementById('absence-start').value,
+      endDate: document.getElementById('absence-end').value,
+      type: document.getElementById('absence-type').value,
+      notes: document.getElementById('absence-notes').value,
+      synced: isOnline
+    };
+    absences.push(absence);
+    localStorage.setItem('absences', JSON.stringify(absences));
+    closeModal('absence-modal');
+    updateAbsencesSummary();
+    if (!isOnline) showOfflineNotification('Assenza salvata offline');
+  }
+
+  function updateProfile(event){
+    event.preventDefault();
+    currentUser.grado = document.getElementById('profile-grado').value;
+    currentUser.irpef = parseFloat(document.getElementById('profile-irpef').value);
+    currentUser.turnazione = document.getElementById('profile-turnazione').value;
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
+    closeModal('profile-modal');
+  }
+
+  function showOfflineNotification(message){
+    const n = document.createElement('div');
+    n.className='fixed top-16 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+    n.innerHTML = `<i class="fas fa-info-circle mr-2"></i>${message}`;
+    document.body.appendChild(n);
+    setTimeout(()=>n.remove(),3000);
+  }
+
+  // ====== Dashboard ======
+  function updateDashboard(){
+    const now = new Date(); const m = now.getMonth(); const y= now.getFullYear();
+    const monthlyTotal = allowances.filter(a=>{const d=new Date(a.date); return d.getMonth()===m && d.getFullYear()===y;}).reduce((s,a)=>s+a.amount,0);
+    document.getElementById('monthly-total').textContent = `€${monthlyTotal.toFixed(2)}`;
+    const overtimeHours = allowances.filter(a=>{const d=new Date(a.date); return (a.type==='straordinario-emergente'||a.type==='straordinario-programmato') && d.getMonth()===m && d.getFullYear()===y;}).length;
+    document.getElementById('overtime-hours').textContent = overtimeHours;
+    const leaveDays = absences.filter(a=>a.type.includes('congedo')).reduce((sum,a)=>{const s=new Date(a.startDate), e=new Date(a.endDate); return sum + (Math.ceil((e-s)/(1000*60*60*24))+1);},0);
+    document.getElementById('leave-days').textContent = leaveDays;
+    const shiftsCount = shifts.filter(s=>{const d=new Date(s.date); return d.getMonth()===m && d.getFullYear()===y;}).length;
+    document.getElementById('shifts-count').textContent = shiftsCount;
+  }
+
+  // ====== Calendar ======
+  function generateCalendar(){
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    document.getElementById('calendar-title').textContent = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(currentDate);
+
+    const firstDay = new Date(year, month, 1);
+    const startDate = new Date(firstDay);
+    const day = firstDay.getDay(); // 0=Sun
+    startDate.setDate(startDate.getDate() - day);
+
+    const grid = document.getElementById('calendar-grid');
+    grid.innerHTML = '';
+    const headers = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+    headers.forEach(h=>{ const hd=document.createElement('div'); hd.className='p-2 text-center font-semibold text-gray-700 bg-gray-100'; hd.textContent=h; grid.appendChild(hd); });
+
+    for(let i=0;i<42;i++){
+      const curr = new Date(startDate); curr.setDate(startDate.getDate()+i);
+      const div = document.createElement('div'); div.className='calendar-day p-2 text-sm';
+      if (curr.getMonth()!==month) div.classList.add('text-gray-400');
+      if (curr.toDateString()===new Date().toDateString()) div.classList.add('today');
+      const num=document.createElement('div'); num.className='font-semibold mb-1'; num.textContent=curr.getDate(); div.appendChild(num);
+      const dayShifts = shifts.filter(s=> s.date === formatDate(curr));
+      const dayAllow = allowances.filter(a=> a.date === formatDate(curr));
+      dayShifts.forEach(shift=>{
+        const sdiv=document.createElement('div');
+        sdiv.className=`shift-${shift.type} text-xs p-1 rounded mb-1`;
+        sdiv.textContent = shift.type.charAt(0).toUpperCase()+shift.type.slice(1);
+        div.appendChild(sdiv);
+      });
+      if (dayAllow.length>0){
+        const total = dayAllow.reduce((sum,a)=>sum+a.amount,0);
+        const adiv=document.createElement('div'); adiv.className='text-xs text-green-700 font-semibold'; adiv.textContent=`€${total.toFixed(2)}`;
+        div.appendChild(adiv);
+      }
+      grid.appendChild(div);
+    }
+  }
+  function previousMonth(){ currentDate.setMonth(currentDate.getMonth()-1); generateCalendar(); }
+  function nextMonth(){ currentDate.setMonth(currentDate.getMonth()+1); generateCalendar(); }
+
+  // ====== Agenda ======
+  function updateAgenda(){
+    const list = document.getElementById('agenda-list'); list.innerHTML='';
+    const today = new Date(); const nextMonth = new Date(); nextMonth.setDate(today.getDate()+30);
+    const upcoming = shifts.filter(s=>{const d=new Date(s.date); return d>=today && d<=nextMonth;}).sort((a,b)=> new Date(a.date)-new Date(b.date));
+    if (upcoming.length===0){ list.innerHTML='<p class="text-center text-gray-500 py-8">Nessun turno programmato nei prossimi 30 giorni.</p>'; return; }
+    upcoming.forEach(shift=>{
+      const item=document.createElement('div'); item.className='border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow';
+      const d=new Date(shift.date); const dayAllow=allowances.filter(a=>a.date===shift.date); const tot=dayAllow.reduce((s,a)=>s+a.amount,0);
+      const gcalUrl = createGoogleCalendarUrl({title:`Turno ${shift.type}`, date:d, notes:shift.notes||''});
+      item.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <h4 class="font-semibold text-lg">${formatDateLong(d)}</h4>
+            <p class="text-gray-600 shift-${shift.type}">${shift.type.charAt(0).toUpperCase()+shift.type.slice(1)}</p>
+            ${shift.notes ? `<p class="text-sm text-gray-500 mt-1">${shift.notes}</p>` : ''}
+            <div class="mt-2">
+              <a href="${gcalUrl}" target="_blank" rel="noopener" class="text-xs text-blue-600 underline"><i class="fab fa-google mr-1"></i>Aggiungi a Google Calendar</a>
+            </div>
+          </div>
+          <div class="text-right">${tot>0?`<p class="text-green-600 font-semibold">€${tot.toFixed(2)}</p>`:''}<p class="text-xs text-gray-400">${dayAllow.length} indennità</p></div>
+        </div>`;
+      list.appendChild(item);
+    });
+  }
+
+  function createGoogleCalendarUrl({title, date, notes}){
+    // All-day event for the given date
+    const start = formatICSDate(date);
+    const endDate = new Date(date); endDate.setDate(endDate.getDate()+1);
+    const end = formatICSDate(endDate);
+    const params = new URLSearchParams({
+      action:'TEMPLATE',
+      text: title,
+      dates: `${start}/${end}`,
+      details: notes || 'Turno creato da TurniService'
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  }
+  function formatICSDate(d){
+    const y=d.getFullYear();
+    const m=String(d.getMonth()+1).padStart(2,'0');
+    const da=String(d.getDate()).padStart(2,'0');
+    return `${y}${m}${da}`;
+  }
+
+  // ====== Absences ======
+  function updateAbsencesSummary(){
+    const y = new Date().getFullYear();
+    const ord = absences.filter(a=> a.type==='congedo-ordinario' && new Date(a.startDate).getFullYear()===y).length;
+    const stra = absences.filter(a=> a.type.includes('congedo-straordinario') && new Date(a.startDate).getFullYear()===y).length;
+    const brevi = absences.filter(a=> a.type==='permesso-breve' && new Date(a.startDate).getFullYear()===y).length;
+    const legge = absences.filter(a=> a.type==='riposo-legge' && new Date(a.startDate).getFullYear()===y).length;
+    document.getElementById('congedi-ordinari').textContent = ord;
+    document.getElementById('congedi-straordinari').textContent = stra;
+    document.getElementById('permessi-brevi').textContent = brevi;
+    document.getElementById('riposi-legge').textContent = legge;
+
+    const list = document.getElementById('absences-list'); list.innerHTML='';
+    absences.sort((a,b)=> new Date(b.startDate)-new Date(a.startDate)).slice(0,10).forEach(abs=>{
+      const s=new Date(abs.startDate), e=new Date(abs.endDate);
+      const duration = Math.ceil((e-s)/(1000*60*60*24))+1;
+      const div=document.createElement('div'); div.className='border border-gray-200 rounded-lg p-4';
+      div.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <h4 class="font-semibold">${getAbsenceTypeLabel(abs.type)}</h4>
+            <p class="text-gray-600">${formatDateLong(s)} - ${formatDateLong(e)}</p>
+            ${abs.notes?`<p class="text-sm text-gray-500 mt-1">${abs.notes}</p>`:''}
+          </div>
+          <div class="text-right"><p class="font-semibold">${duration} giorn${duration===1?'o':'i'}</p></div>
+        </div>`;
+      list.appendChild(div);
+    });
+  }
+
+  // ====== Search ======
+  function performSearch(){
+    const type = document.getElementById('search-type').value;
+    const fromDate = document.getElementById('search-from').value;
+    const toDate = document.getElementById('search-to').value;
+    const results = [];
+    const from = fromDate ? new Date(fromDate) : new Date('1900-01-01');
+    const to = toDate ? new Date(toDate) : new Date('2100-12-31');
+
+    if (!type || type==='shift'){
+      shifts.filter(s=> { const d=new Date(s.date); return d>=from && d<=to; })
+            .forEach(s=> results.push({ type:'shift', data:s, date:s.date }));
+    }
+    if (!type || type==='absence'){
+      absences.filter(a=> { const d=new Date(a.startDate); return d>=from && d<=to; })
+              .forEach(a=> results.push({ type:'absence', data:a, date:a.startDate }));
+    }
+    if (!type || type==='allowance'){
+      allowances.filter(a=> { const d=new Date(a.date); return d>=from && d<=to; })
+                .forEach(a=> results.push({ type:'allowance', data:a, date:a.date }));
+    }
+
+    results.sort((a,b)=> new Date(b.date)-new Date(a.date));
+    const container = document.getElementById('search-results'); container.innerHTML='';
+    if (results.length===0){ container.innerHTML='<p class="text-center text-gray-500 py-8">Nessun risultato trovato.</p>'; return; }
+
+    results.forEach(r=>{
+      const d=new Date(r.date);
+      const card=document.createElement('div'); card.className='border border-gray-200 rounded-lg p-4';
+      let content='';
+      if (r.type==='shift'){
+        content = `
+          <div class="flex items-center mb-2"><i class="fas fa-clock text-blue-500 mr-2"></i><span class="font-semibold">Turno</span></div>
+          <p class="text-gray-600">${formatDateLong(d)} - ${r.data.type}</p>
+          ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
+        `;
+      } else if (r.type==='absence'){
+        const e=new Date(r.data.endDate);
+        const dur = Math.ceil((e-d)/(1000*60*60*24))+1;
+        content = `
+          <div class="flex items-center mb-2"><i class="fas fa-calendar-times text-orange-500 mr-2"></i><span class="font-semibold">Assenza</span></div>
+          <p class="text-gray-600">${getAbsenceTypeLabel(r.data.type)}</p>
+          <p class="text-gray-600">${formatDateLong(d)} - ${formatDateLong(e)} (${dur} giorni)</p>
+          ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
+        `;
+      } else if (r.type==='allowance'){
+        content = `
+          <div class="flex items-center mb-2"><i class="fas fa-euro-sign text-green-500 mr-2"></i><span class="font-semibold">Indennità</span></div>
+          <p class="text-gray-600">${getAllowanceTypeLabel(r.data.type)} - €${r.data.amount.toFixed(2)}</p>
+          <p class="text-gray-600">${formatDateLong(d)}</p>
+          ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
+        `;
+      }
+      card.innerHTML = content;
+      container.appendChild(card);
+    });
+  }
+
+  // ====== Chart ======
+  function initChart(){
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    const data=[]; const labels=[];
+    for (let i=11;i>=0;i--){
+      const date=new Date(); date.setMonth(date.getMonth()-i);
+      const total = allowances.filter(a=> { const d=new Date(a.date); return d.getMonth()===date.getMonth() && d.getFullYear()===date.getFullYear(); })
+                              .reduce((s,a)=>s+a.amount,0);
+      data.push(total);
+      labels.push(new Intl.DateTimeFormat('it-IT',{month:'short',year:'2-digit'}).format(date));
+    }
+    monthlyChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Indennità Mensili (€)', data, borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.1, fill: true }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { callback: (v)=> '€'+Number(v).toFixed(2) } } },
+        plugins: { legend: { display:true, position:'top' } }
+      }
+    });
+  }
+  function updateChart(){
+    if (!monthlyChart) return;
+    const newData=[];
+    for (let i=11;i>=0;i--){
+      const date=new Date(); date.setMonth(date.getMonth()-i);
+      const total = allowances.filter(a=> { const d=new Date(a.date); return d.getMonth()===date.getMonth() && d.getFullYear()===date.getFullYear(); })
+                              .reduce((s,a)=>s+a.amount,0);
+      newData.push(total);
+    }
+    monthlyChart.data.datasets[0].data = newData;
+    monthlyChart.update();
+  }
+
+  // ====== Backup ======
+  function backupData(){
+    const backup = { user: currentUser, shifts, allowances, absences, timestamp:new Date().toISOString(), version:'3.0' };
+    const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `turniservice_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+  }
+
+  // ====== Utils ======
+  function formatDate(date){ return date.toISOString().split('T')[0]; }
+  function formatDateLong(date){ return new Intl.DateTimeFormat('it-IT',{ weekday:'long', year:'numeric', month:'long', day:'numeric'}).format(date); }
+  function getForceLabel(code){ const map={'carabinieri':'Carabinieri','guardia-finanza':'Guardia di Finanza','polizia-stato':'Polizia di Stato','polizia-penitenziaria':'Polizia Penitenziaria'}; return map[code]||code; }
+  function getAbsenceTypeLabel(type){
+    const types={'congedo-ordinario':'Congedo Ordinario','congedo-straordinario-malattia':'Congedo Straordinario per Malattia','congedo-straordinario-esami':'Congedo Straordinario per Esami','congedo-straordinario-familiari':'Congedo Straordinario per Gravi Motivi Familiari','congedo-straordinario-trasferimento':'Congedo Straordinario per Trasferimento','riposo-legge':'Riposo Legge','riposo-settimanale':'Riposo Settimanale','riposo-festivo':'Riposo Festivo','riposo-compensativo':'Riposo Compensativo','aspettativa':'Aspettativa','legge-104':'Legge 104','donazione-sangue':'Donazione Sangue','ore-studio':'Ore di Studio','permesso-breve':'Permesso Breve','permesso-sindacale':'Permesso Sindacale'};
+    return types[type]||type;
+  }
+  function getAllowanceTypeLabel(type){
+    const types={'ordine-pubblico':'Ordine Pubblico','servizio-esterno':'Servizio Esterno','cambio-turno':'Cambio Turno','missione':'Missione','reperibilita':'Reperibilità','rimborso-forfettario':'Rimborso Forfettario','buono-pasto':'Buono Pasto','straordinario-emergente':'Straordinario Emergente','straordinario-programmato':'Straordinario Programmato'};
+    return types[type]||type;
+  }
+
+  // ====== Init ======
+  document.addEventListener('DOMContentLoaded', function(){
+    updateConnectionStatus();
+    document.querySelectorAll('[id$="-modal"]').forEach(m=>m.classList.add('hidden'));
+    initAuth();
+  });
+  document.addEventListener('keydown', function(e){ if (e.key==='Escape') closeAllModals(); });
+  if ('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('controllerchange', ()=> window.location.reload()); }
   </script>
 </body>
 </html>
+"""
+
+path = Path("/mnt/data/turniservice_index.html")
+path.write_text(full_html, encoding="utf-8")
+path.name
