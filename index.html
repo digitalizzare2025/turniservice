@@ -10,8 +10,8 @@
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- FullCalendar CSS (FIX) -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet">
+  <!-- FullCalendar CSS (bundle globale: garantisce la griglia giorni) -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
   <!-- Icone -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
@@ -26,7 +26,11 @@
     #chart-indennita { min-height: 280px; display: block; }
     #calendario-app { min-height: 520px; }
     #auth-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto; }
+
+    /* Classi placeholder per i turni (palette invariata) */
     .turno-sera{} .turno-pomeriggio{} .turno-mattina{} .turno-notte{} .turno-riposo{}
+    /* Assenze nel calendario (lasciamo lo stile di default) */
+    .absence-event{}
   </style>
 </head>
 <body>
@@ -371,7 +375,7 @@
     </div>
   </div>
 
-  <!-- OVERLAY LOGIN (SUPABASE MAGIC LINK) -->
+  <!-- OVERLAY LOGIN -->
   <div id="auth-overlay">
     <div class="container py-5">
       <div class="row justify-content-center">
@@ -403,15 +407,14 @@
   <!-- LIBRERIE -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- FullCalendar JS -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <!-- SDK Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 
   <script>
   /* ========= CONFIG ========= */
   const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   // <-- Sostituisci
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU";                      // <-- Sostituisci
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU
+";                      // <-- Sostituisci
   const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
   });
@@ -421,6 +424,7 @@
   const setJSON = (k,v) => localStorage.setItem(k, JSON.stringify(v));
   const fmtISO = d => d.toISOString().slice(0,10);
   const parseISO = s => new Date(s+'T00:00:00');
+  const addDays = (iso, n=1) => { const d = parseISO(iso); d.setDate(d.getDate()+n); return fmtISO(d); };
   function* daysRange(d1,d2){ const c=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()); const e=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate()); while(c<=e){ yield new Date(c); c.setDate(c.getDate()+1);} }
   const $ = sel => document.querySelector(sel);
 
@@ -450,11 +454,11 @@
     } else {
       overlay.style.display=''; badge.classList.replace('bg-success','bg-secondary'); badge.textContent='Offline';
       emailTxt.textContent=''; btnLogout.classList.add('d-none'); $('#btn-profile')?.classList.add('d-none');
-      renderCalendar([]); renderAgendaList('#agenda-list',[]); renderIndennitaChartPlaceholder();
+      renderCalendar([]); renderAgendaList([],[]); renderIndennitaChartPlaceholder();
     }
   }
 
-  $('#btn-send-magic')?.addEventListener('click', async (e)=>{
+  document.getElementById('btn-send-magic')?.addEventListener('click', async (e)=>{
     e.preventDefault();
     const email = $('#auth-email').value.trim(); const msg = $('#auth-msg');
     if(!email){ msg.textContent='Inserisci una email valida.'; return; }
@@ -466,7 +470,7 @@
     }catch(err){ msg.textContent='Errore: '+(err.message||'Failed to fetch'); await diagSupabase('(eccezione client)'); }
   });
 
-  $('#btn-logout')?.addEventListener('click', async ()=>{ await supa.auth.signOut(); await checkSessionUI(); });
+  document.getElementById('btn-logout')?.addEventListener('click', async ()=>{ await supa.auth.signOut(); await checkSessionUI(); });
   supa.auth.onAuthStateChange(async ()=>{ await checkSessionUI(); });
 
   /* ========= DATA LAYER ========= */
@@ -516,47 +520,129 @@
     const { error } = await supa.from('absences').insert({ ...row, user_id: uid });
     if(error) throw error;
   }
+  async function deleteAbsence(id){
+    const uid = await getUserId(); if(!uid) throw new Error('Utente non autenticato');
+    const { error } = await supa.from('absences').delete().eq('id', id).eq('user_id', uid);
+    if(error) throw error;
+  }
 
   /* ========= RENDER ========= */
   let _calendar, _chart;
+
   function mapShiftsToEvents(shifts){
     const titleMap={sera:'Turno sera',pomeriggio:'Turno pomeriggio',mattina:'Turno mattina',notte:'Turno notte',riposo:'Riposo'};
     const classMap={sera:'turno-sera',pomeriggio:'turno-pomeriggio',mattina:'turno-mattina',notte:'turno-notte',riposo:'turno-riposo'};
-    return (shifts||[]).map(s=>({ id:s.id, title:titleMap[s.tipo]||s.tipo, start:s.date, allDay:true, className:classMap[s.tipo]||'', extendedProps:{ tipo:s.tipo, origin:s.origin||'manual' } }));
+    return (shifts||[]).map(s=>({
+      id:s.id, title:titleMap[s.tipo]||s.tipo, start:s.date, allDay:true,
+      className:classMap[s.tipo]||'',
+      extendedProps:{ kind:'shift', tipo:s.tipo, origin:s.origin||'manual' }
+    }));
   }
+
+  // Assenze come eventi all-day: end esclusivo (+1 giorno per includere la data finale)
+  const add1 = iso => addDays(iso, 1);
+  function mapAbsencesToEvents(absences){
+    return (absences||[]).map(a=>({
+      id:'abs-'+a.id,
+      title:`Assenza: ${a.tipo}`,
+      start:a.start_date,
+      end:add1(a.end_date),
+      allDay:true,
+      className:'absence-event',
+      extendedProps:{ kind:'absence', absId:a.id, tipo:a.tipo, start_date:a.start_date, end_date:a.end_date }
+    }));
+  }
+
   function renderCalendar(events){
     const el = document.getElementById('calendario-app');
     if(!_calendar){
-      _calendar = new FullCalendar.Calendar(el,{ initialView:'dayGridMonth', height:'auto', fixedWeekCount:false, showNonCurrentDates:true, dayMaxEvents:true, events:events||[] });
+      _calendar = new FullCalendar.Calendar(el,{
+        initialView:'dayGridMonth',
+        height:'auto',
+        fixedWeekCount:false,
+        showNonCurrentDates:true,
+        dayMaxEvents:true,
+        events: events || []
+      });
       _calendar.render();
       window._calendar=_calendar;
     } else {
       _calendar.removeAllEvents(); _calendar.addEventSource(events||[]); _calendar.updateSize();
     }
   }
-  function renderAgendaList(sel, events){
-    const el = document.querySelector(sel); if(!el) return;
-    const items=[...(events||[])].sort((a,b)=>a.start<b.start?-1:1);
-    el.innerHTML='';
-    for(const ev of items){
-      const d=new Date(ev.start);
-      const div=document.createElement('div');
-      div.className='border rounded p-3';
-      div.innerHTML=`<div class="d-flex justify-content-between align-items-center">
-        <div><div class="fw-bold">${d.toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div>
-        <div class="text-muted small">${ev.title}</div></div>
-        <div class="d-flex gap-3"><a href="#" class="link-danger" data-del="${ev.id}">Elimina</a></div></div>`;
-      el.appendChild(div);
+
+  function renderAgendaList(shiftEvents, absenceRows){
+    const el = document.getElementById('agenda-list'); if(!el) return;
+    el.innerHTML = '';
+
+    // Turni (singoli giorni)
+    const turni = [...(shiftEvents||[])].sort((a,b)=> a.start<b.start ? -1 : 1);
+    for(const ev of turni){
+      const d = new Date(ev.start);
+      const item = document.createElement('div');
+      item.className = 'border rounded p-3';
+      item.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold">${d.toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div>
+            <div class="text-muted small">${ev.title}</div>
+          </div>
+          <div class="d-flex gap-3">
+            <a href="#" class="link-danger" data-del-shift="${ev.id}">Elimina</a>
+          </div>
+        </div>`;
+      el.appendChild(item);
     }
-    el.querySelectorAll('[data-del]')?.forEach(a=>{
+
+    // Assenze (range)
+    const abs = [...(absenceRows||[])].sort((a,b)=> a.start_date<b.start_date ? -1 : 1);
+    for(const a of abs){
+      const item = document.createElement('div');
+      item.className = 'border rounded p-3';
+      const da = new Date(a.start_date).toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      const aA = new Date(a.end_date).toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      item.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold">Assenza: ${a.tipo}</div>
+            <div class="text-muted small">Dal ${da} al ${aA}</div>
+          </div>
+          <div class="d-flex gap-3">
+            <a href="#" class="link-danger" data-del-abs="${a.id}">Elimina</a>
+          </div>
+        </div>`;
+      el.appendChild(item);
+    }
+
+    // Elimina turno
+    el.querySelectorAll('[data-del-shift]')?.forEach(a=>{
       a.addEventListener('click', async (e)=>{
         e.preventDefault();
-        const id=a.getAttribute('data-del');
-        try{ await deleteShift(id); await loadAllDataAndRender(); }
-        catch(err){ let c=getJSON(LS_KEYS.CAL,[]); c=c.filter(x=>x.id!==id); setJSON(LS_KEYS.CAL,c); renderCalendar(mapShiftsToEvents(c)); renderAgendaList('#agenda-list', mapShiftsToEvents(c)); }
+        const id = a.getAttribute('data-del-shift');
+        try { await deleteShift(id); await loadAllDataAndRender(); }
+        catch(err){
+          let c=getJSON(LS_KEYS.CAL,[]); c=c.filter(x=>x.id!==id); setJSON(LS_KEYS.CAL,c);
+          const evs = mapShiftsToEvents(c), absE = mapAbsencesToEvents(getJSON(LS_KEYS.ABS,[]));
+          renderCalendar([...evs, ...absE]); renderAgendaList(evs, getJSON(LS_KEYS.ABS,[]));
+        }
+      });
+    });
+
+    // Elimina assenza
+    el.querySelectorAll('[data-del-abs]')?.forEach(a=>{
+      a.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const id = a.getAttribute('data-del-abs');
+        try { await deleteAbsence(id); await loadAllDataAndRender(); }
+        catch(err){
+          let c=getJSON(LS_KEYS.ABS,[]); c=c.filter(x=>x.id!==id); setJSON(LS_KEYS.ABS,c);
+          const evs = mapShiftsToEvents(getJSON(LS_KEYS.CAL,[])), absE = mapAbsencesToEvents(c);
+          renderCalendar([...evs, ...absE]); renderAgendaList(evs, c);
+        }
       });
     });
   }
+
   function renderIndennitaChartPlaceholder(){
     const el=document.getElementById('chart-indennita'); if(!el) return;
     const labels=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'], values=Array(12).fill(0);
@@ -574,13 +660,20 @@
   /* ========= LOAD & SYNC ========= */
   async function loadAllDataAndRender(){
     try{
-      const [shifts, allowances] = await Promise.all([fetchShifts(), fetchAllowances()]);
-      const events = mapShiftsToEvents(shifts);
-      renderCalendar(events); renderAgendaList('#agenda-list', events); renderIndennitaChartFromAllowances(allowances);
+      const [shifts, allowances, absences] = await Promise.all([fetchShifts(), fetchAllowances(), fetchAbsences()]);
+      const shiftEvents = mapShiftsToEvents(shifts);
+      const absenceEvents = mapAbsencesToEvents(absences);
+      renderCalendar([...shiftEvents, ...absenceEvents]);
+      renderAgendaList(shiftEvents, absences);
+      renderIndennitaChartFromAllowances(allowances);
     } catch(err){
       console.warn('loadAllData error, uso cache', err);
-      const cS=getJSON(LS_KEYS.CAL,[]), cA=getJSON(LS_KEYS.IND,[]);
-      renderCalendar(mapShiftsToEvents(cS)); renderAgendaList('#agenda-list', mapShiftsToEvents(cS)); renderIndennitaChartFromAllowances(cA);
+      const cS=getJSON(LS_KEYS.CAL,[]), cA=getJSON(LS_KEYS.IND,[]), cAbs=getJSON(LS_KEYS.ABS,[]);
+      const shiftEvents = mapShiftsToEvents(cS);
+      const absenceEvents = mapAbsencesToEvents(cAbs);
+      renderCalendar([...shiftEvents, ...absenceEvents]);
+      renderAgendaList(shiftEvents, cAbs);
+      renderIndennitaChartFromAllowances(cA);
     }
   }
 
@@ -603,8 +696,14 @@
     const data=$('#turno-data').value, tipo=$('#turno-tipo').value, note=$('#turno-note').value||null, err=$('#err-turno');
     err.classList.add('d-none'); err.textContent='';
     if(!data||!tipo){ err.textContent='Compila data e tipo turno.'; err.classList.remove('d-none'); return; }
-    try{ await upsertShifts([{ date:data, tipo, note, origin:'manual' }]); await loadAllDataAndRender(); document.querySelector('#modalAddTurno .btn-close').click(); }
-    catch(ex){ err.textContent='Errore salvataggio: '+(ex?.message||'verifica permessi RLS'); err.classList.remove('d-none'); }
+    try{
+      await upsertShifts([{ date:data, tipo, note, origin:'manual' }]);
+      await loadAllDataAndRender();
+      document.querySelector('#modalAddTurno .btn-close').click();
+    } catch(ex){
+      err.textContent='Errore salvataggio: '+(ex?.message||'verifica permessi RLS');
+      err.classList.remove('d-none');
+    }
   });
 
   // Indennità
@@ -613,8 +712,14 @@
     const data=$('#ind-data').value, tipo=$('#ind-tipo').value, importo=parseFloat($('#ind-importo').value||'0'), note=$('#ind-note').value||null, err=$('#err-indennita');
     err.classList.add('d-none'); err.textContent='';
     if(!data||!tipo||isNaN(importo)){ err.textContent='Compila tutti i campi.'; err.classList.remove('d-none'); return; }
-    try{ await insertAllowance({ date:data, tipo, importo, note }); await loadAllDataAndRender(); document.querySelector('#modalAddIndennita .btn-close').click(); }
-    catch(ex){ err.textContent='Errore salvataggio: '+(ex?.message||'verifica permessi RLS'); err.classList.remove('d-none'); }
+    try{
+      await insertAllowance({ date:data, tipo, importo, note });
+      await loadAllDataAndRender();
+      document.querySelector('#modalAddIndennita .btn-close').click();
+    }catch(ex){
+      err.textContent='Errore salvataggio: '+(ex?.message||'verifica permessi RLS');
+      err.classList.remove('d-none');
+    }
   });
 
   // Assenza
@@ -623,22 +728,41 @@
     const start=$('#ass-start').value, end=$('#ass-end').value, tipo=$('#ass-tipo').value, note=$('#ass-note').value||null, err=$('#err-assenza');
     err.classList.add('d-none'); err.textContent='';
     if(!start||!end||!tipo){ err.textContent='Compila tutti i campi.'; err.classList.remove('d-none'); return; }
-    try{ await insertAbsence({ start_date:start, end_date:end, tipo, note }); document.querySelector('#modalAddAssenza .btn-close').click(); }
-    catch(ex){ err.textContent='Errore salvataggio: '+(ex?.message||'verifica permessi RLS'); err.classList.remove('d-none'); }
+    try{
+      await insertAbsence({ start_date:start, end_date:end, tipo, note });
+      await loadAllDataAndRender();
+      document.querySelector('#modalAddAssenza .btn-close').click();
+    }catch(ex){
+      err.textContent='Errore salvataggio: '+(ex?.message||'verifica permessi RLS');
+      err.classList.remove('d-none');
+    }
   });
 
   /* ========= AGENDA: turnazione in quinta ========= */
   (function agendaRotation(){
     const SEQ=['sera','pomeriggio','mattina','notte','riposo'];
-    function generateRotation({start,end,startShift}){ const i0=SEQ.indexOf(startShift); if(i0<0) throw new Error('Turno iniziale non valido'); const rows=[]; let i=0; for(const d of daysRange(start,end)){ const tipo=SEQ[(i0+i)%SEQ.length]; rows.push({ date:fmtISO(d), tipo, note:null, origin:'auto' }); i++; } return rows; }
+    function generateRotation({start,end,startShift}){
+      const i0=SEQ.indexOf(startShift); if(i0<0) throw new Error('Turno iniziale non valido');
+      const rows=[]; let i=0;
+      for(const d of daysRange(start,end)){
+        const tipo=SEQ[(i0+i)%SEQ.length];
+        rows.push({ date:fmtISO(d), tipo, note:null, origin:'auto' });
+        i++;
+      }
+      return rows;
+    }
     document.getElementById('r-genera')?.addEventListener('click', async ()=>{
       const ds=$('#r-start').value, de=$('#r-end').value, shift=$('#r-start-shift').value, out=$('#r-esito');
       try{
         if(!ds||!de||!shift) throw new Error('Compila data inizio, data fine e turno iniziale.');
         const d1=parseISO(ds), d2=parseISO(de); if(d2<d1) throw new Error('La data di fine deve essere successiva a quella di inizio.');
         const rows=generateRotation({ start:d1, end:d2, startShift:shift });
-        await upsertShifts(rows); await loadAllDataAndRender(); out.textContent=`Generati ${rows.length} turni fino al ${de}.`;
-      } catch(ex){ out.textContent=ex.message||'Errore generazione.'; }
+        await upsertShifts(rows);
+        await loadAllDataAndRender();
+        out.textContent=`Generati ${rows.length} turni fino al ${de}.`;
+      } catch(ex){
+        out.textContent=ex.message||'Errore generazione.';
+      }
     });
   })();
 
@@ -662,15 +786,10 @@
   });
 
   /* ========= CHART placeholder + INIT ========= */
-  function renderIndennitaChartPlaceholder(){ const el=document.getElementById('chart-indennita'); if(!el) return;
-    const labels=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'], values=Array(12).fill(0);
-    if(window._chart) window._chart.destroy();
-    window._chart=new Chart(el,{type:'line',data:{labels,datasets:[{label:'Indennità',data:values,tension:0.3,fill:false}]},options:{maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
-  }
   renderIndennitaChartPlaceholder();
   checkSessionUI();
 
-  /* ========= Service Worker ATTIVO ========= */
+  /* ========= Service Worker attivo ========= */
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
   </script>
 </body>
