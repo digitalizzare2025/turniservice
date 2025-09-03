@@ -29,12 +29,8 @@
     /* Overlay login (Magic Link) */
     #auth-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto; }
 
-    /* Classi facoltative per i turni (paletta invariata) */
-    .turno-sera{}
-    .turno-pomeriggio{}
-    .turno-mattina{}
-    .turno-notte{}
-    .turno-riposo{}
+    /* Classi facoltative per i turni (palette invariata) */
+    .turno-sera{} .turno-pomeriggio{} .turno-mattina{} .turno-notte{} .turno-riposo{}
   </style>
 </head>
 <body>
@@ -91,7 +87,7 @@
         </div>
         <div class="col-12 col-md-3">
           <div class="card"><div class="card-body">
-            <div class="small text-muted">Giorni Congedo</div>
+            <div class="small text muted">Giorni Congedo</div>
             <div class="fw-bold fs-4" id="val-congedo">0</div>
           </div></div>
         </div>
@@ -392,6 +388,10 @@
                 <button class="btn btn-primary" id="btn-send-magic">Invia Link Magico</button>
               </div>
               <div id="auth-msg" class="small text-muted mt-3" aria-live="polite"></div>
+
+              <!-- Diagno: mostriamo eventuali problemi di connessione/Supabase -->
+              <div class="alert alert-warning mt-3 d-none" id="diag-panel"></div>
+
               <hr class="my-3">
               <p class="small text-muted">
                 Dopo aver cliccato il link nell'email, verrai reindirizzato qui e l’accesso sarà automatico.
@@ -416,8 +416,8 @@
    * CONFIG SUPABASE
    *********************/
   // ⬇️ Sostituisci con i tuoi valori reali (Settings → API)
-  const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";   // <-- Sostituisci
-  const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";                      // <-- Sostituisci
+  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU";                      
 
   // UMD: oggetto globale "supabase"
   const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -428,26 +428,34 @@
     }
   });
 
-  const LS_KEYS = {
-    CAL: 'turni_calendario_cache',
-    IND: 'indennita_mensili_cache',
-    ABS: 'assenze_cache'
-  };
-
-  const getJSON = (k, def=[]) => {
-    try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); }
-    catch { return def; }
-  };
+  const LS_KEYS = { CAL:'turni_calendario_cache', IND:'indennita_mensili_cache', ABS:'assenze_cache' };
+  const getJSON = (k, def=[]) => { try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); } catch { return def; } };
   const setJSON = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
   const fmtISO = d => d.toISOString().slice(0,10);
   const parseISO = s => new Date(s + 'T00:00:00');
-  function* daysRange(d1, d2) {
-    const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
-    const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
-    while (cur <= end) { yield new Date(cur); cur.setDate(cur.getDate() + 1); }
-  }
+  function* daysRange(d1, d2){ const c=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()); const e=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate()); while(c<=e){ yield new Date(c); c.setDate(c.getDate()+1);} }
   const $ = sel => document.querySelector(sel);
+
+  /*********************
+   * DIAGNOSTICA
+   *********************/
+  async function diagSupabase(reasonText='') {
+    const panel = $('#diag-panel');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_ANON_KEY } });
+      if (res.ok) {
+        panel.classList.add('d-none');
+        return true;
+      }
+      panel.classList.remove('d-none');
+      panel.innerHTML = `<strong>Diagnostica:</strong> endpoint raggiunto ma risposta ${res.status}. Verifica <em>Redirect URLs</em> e chiave <em>anon</em>. ${reasonText}`;
+      return false;
+    } catch (e) {
+      panel.classList.remove('d-none');
+      panel.innerHTML = `<strong>Diagnostica:</strong> impossibile contattare Supabase.<br>Controlla <code>SUPABASE_URL</code> e che la rete non blocchi <em>*.supabase.co</em>.<br>Dettaglio: ${e.message}`;
+      return false;
+    }
+  }
 
   /*********************
    * AUTH: Magic Link
@@ -461,7 +469,7 @@
 
     if (session && session.user) {
       overlay.style.display = 'none';
-      badge.classList.remove('bg-secondary'); badge.classList.add('bg-success');
+      badge.classList.replace('bg-secondary','bg-success');
       badge.textContent = 'Online';
       emailTxt.textContent = session.user.email || '';
       btnLogout.classList.remove('d-none');
@@ -469,232 +477,161 @@
       await loadAllDataAndRender();
     } else {
       overlay.style.display = '';
-      badge.classList.remove('bg-success'); badge.classList.add('bg-secondary');
+      badge.classList.replace('bg-success','bg-secondary');
       badge.textContent = 'Offline';
       emailTxt.textContent = '';
       btnLogout.classList.add('d-none');
       $('#btn-profile')?.classList.add('d-none');
-      renderCalendar([]);
-      renderAgendaList('#agenda-list', []);
-      renderIndennitaChartPlaceholder();
+      renderCalendar([]); renderAgendaList('#agenda-list', []); renderIndennitaChartPlaceholder();
     }
   }
 
-  // Invio Magic Link con redirect esplicito su GitHub Pages
   document.getElementById('btn-send-magic')?.addEventListener('click', async (e)=>{
     e.preventDefault();
     const email = document.getElementById('auth-email').value.trim();
     const msg = document.getElementById('auth-msg');
     if (!email) { msg.textContent = 'Inserisci una email valida.'; return; }
     msg.textContent = 'Invio link magico...';
+    await diagSupabase('(prima dell\'invio)');
 
-    const { error } = await supa.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: 'https://digitalizzare2025.github.io/turniservice/'
-      }
-    });
-
-    msg.textContent = error ? ('Errore: ' + error.message)
-                            : 'Email inviata! Controlla la casella e clicca sul link per accedere.';
+    try {
+      const { error } = await supa.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: 'https://digitalizzare2025.github.io/turniservice/' }
+      });
+      msg.textContent = error ? ('Errore: ' + (error.message || 'sconosciuto')) : 'Email inviata! Controlla la casella e clicca sul link per accedere.';
+      if (error) await diagSupabase('(errore invio)');
+    } catch (err) {
+      msg.textContent = 'Errore: ' + (err.message || 'Failed to fetch');
+      await diagSupabase('(eccezione client)');
+    }
   });
 
-  // Logout
   document.getElementById('btn-logout')?.addEventListener('click', async ()=>{
     await supa.auth.signOut();
     await checkSessionUI();
   });
 
-  // Reagisci ai cambi sessione (anche dopo il redirect del magic link)
   supa.auth.onAuthStateChange(async ()=>{ await checkSessionUI(); });
 
   /*********************
    * DATA LAYER (Supabase + cache)
    *********************/
-  async function getUserId() {
-    const { data: { user } } = await supa.auth.getUser();
-    return user?.id || null;
-  }
+  async function getUserId(){ const { data:{ user } } = await supa.auth.getUser(); return user?.id || null; }
 
-  // SHIFTS
-  async function fetchShifts() {
+  // Shifts
+  async function fetchShifts(){
     const uid = await getUserId(); if (!uid) return [];
     const { data, error } = await supa.from('shifts').select('*').eq('user_id', uid).order('date');
-    if (error) { console.warn('fetchShifts error', error); return getJSON(LS_KEYS.CAL, []); }
-    setJSON(LS_KEYS.CAL, data || []);
-    return data || [];
+    if (error){ console.warn('fetchShifts', error); return getJSON(LS_KEYS.CAL, []); }
+    setJSON(LS_KEYS.CAL, data||[]); return data||[];
   }
-  async function upsertShifts(rows) {
+  async function upsertShifts(rows){
     const uid = await getUserId(); if (!uid) return;
-    const payload = rows.map(r => ({ ...r, user_id: uid }));
+    const payload = rows.map(r=>({ ...r, user_id: uid }));
     const { error } = await supa.from('shifts').upsert(payload, { onConflict: 'user_id,date,tipo' });
     if (error) throw error;
   }
-  async function deleteShift(id) {
+  async function deleteShift(id){
     const uid = await getUserId(); if (!uid) return;
     const { error } = await supa.from('shifts').delete().eq('id', id).eq('user_id', uid);
     if (error) throw error;
   }
 
-  // ALLOWANCES
-  async function fetchAllowances() {
+  // Allowances
+  async function fetchAllowances(){
     const uid = await getUserId(); if (!uid) return [];
     const { data, error } = await supa.from('allowances').select('*').eq('user_id', uid).order('date');
-    if (error) { console.warn('fetchAllowances error', error); return getJSON(LS_KEYS.IND, []); }
-    setJSON(LS_KEYS.IND, data || []);
-    return data || [];
+    if (error){ console.warn('fetchAllowances', error); return getJSON(LS_KEYS.IND, []); }
+    setJSON(LS_KEYS.IND, data||[]); return data||[];
   }
-  async function insertAllowance(row) {
+  async function insertAllowance(row){
     const uid = await getUserId(); if (!uid) return;
-    const payload = { ...row, user_id: uid };
-    const { error } = await supa.from('allowances').insert(payload);
+    const { error } = await supa.from('allowances').insert({ ...row, user_id: uid });
     if (error) throw error;
   }
 
-  // ABSENCES (placeholder)
-  async function insertAbsence(row) {
+  // Absences
+  async function insertAbsence(row){
     const uid = await getUserId(); if (!uid) return;
-    const payload = { ...row, user_id: uid };
-    theError = (await supa.from('absences').insert(payload)).error;
-    if (theError) throw theError;
+    const { error } = await supa.from('absences').insert({ ...row, user_id: uid });
+    if (error) throw error;
   }
 
   /*********************
    * RENDER: Calendario, Agenda, Grafico
    *********************/
   let _calendar, _chart;
-
-  function mapShiftsToEvents(shifts) {
+  function mapShiftsToEvents(shifts){
     const titleMap = { sera:'Turno sera', pomeriggio:'Turno pomeriggio', mattina:'Turno mattina', notte:'Turno notte', riposo:'Riposo' };
     const classMap = { sera:'turno-sera', pomeriggio:'turno-pomeriggio', mattina:'turno-mattina', notte:'turno-notte', riposo:'turno-riposo' };
-    return (shifts || []).map(s => ({
-      id: s.id,
-      title: titleMap[s.tipo] || s.tipo,
-      start: s.date,
-      allDay: true,
-      className: classMap[s.tipo] || '',
-      extendedProps: { tipo: s.tipo, origin: s.origin || 'manual' }
-    }));
+    return (shifts||[]).map(s=>({ id:s.id, title:titleMap[s.tipo]||s.tipo, start:s.date, allDay:true, className:classMap[s.tipo]||'', extendedProps:{ tipo:s.tipo, origin:s.origin||'manual' } }));
   }
-
-  function renderCalendar(events) {
+  function renderCalendar(events){
     const el = document.getElementById('calendario-app');
-    if (!el || typeof FullCalendar === 'undefined') return;
-
-    if (!_calendar) {
-      _calendar = new FullCalendar.Calendar(el, {
-        initialView: 'dayGridMonth',
-        height: 'auto',
-        fixedWeekCount: false,
-        showNonCurrentDates: true,
-        dayMaxEvents: true,
-        events: events || []
-      });
+    if (!_calendar){
+      _calendar = new FullCalendar.Calendar(el,{ initialView:'dayGridMonth', height:'auto', fixedWeekCount:false, showNonCurrentDates:true, dayMaxEvents:true, events:events||[] });
       _calendar.render();
     } else {
-      _calendar.removeAllEvents();
-      _calendar.addEventSource(events || []);
-      _calendar.updateSize();
+      _calendar.removeAllEvents(); _calendar.addEventSource(events||[]); _calendar.updateSize();
     }
   }
-
-  function renderAgendaList(containerSelector, events) {
-    const el = document.querySelector(containerSelector);
-    if (!el) return;
-    const items = [...(events || [])]
-      .sort((a,b)=> (a.start < b.start ? -1 : 1));
-
+  function renderAgendaList(sel, events){
+    const el = document.querySelector(sel); if (!el) return;
+    const items = [...(events||[])].sort((a,b)=>a.start<b.start?-1:1);
     el.innerHTML = '';
-    for (const ev of items) {
+    for (const ev of items){
       const d = new Date(ev.start);
-      const item = document.createElement('div');
-      item.className = 'border rounded p-3';
-      item.innerHTML = `
+      const div = document.createElement('div');
+      div.className = 'border rounded p-3';
+      div.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <div class="fw-bold">${d.toLocaleDateString('it-IT', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })}</div>
+            <div class="fw-bold">${d.toLocaleDateString('it-IT',{ weekday:'long', day:'2-digit', month:'long', year:'numeric' })}</div>
             <div class="text-muted small">${ev.title}</div>
           </div>
-          <div class="d-flex gap-3">
-            <a href="#" class="link-danger" data-del="${ev.id}">Elimina</a>
-          </div>
-        </div>
-      `;
-      el.appendChild(item);
+          <div class="d-flex gap-3"><a href="#" class="link-danger" data-del="${ev.id}">Elimina</a></div>
+        </div>`;
+      el.appendChild(div);
     }
-
     el.querySelectorAll('[data-del]')?.forEach(a=>{
       a.addEventListener('click', async (e)=>{
         e.preventDefault();
         const id = a.getAttribute('data-del');
-        try {
-          await deleteShift(id);
-          await loadAllDataAndRender();
-        } catch (err) {
-          let cache = getJSON(LS_KEYS.CAL, []);
-          cache = cache.filter(x => x.id !== id);
-          setJSON(LS_KEYS.CAL, cache);
-          renderCalendar(mapShiftsToEvents(cache));
-          renderAgendaList('#agenda-list', mapShiftsToEvents(cache));
+        try { await deleteShift(id); await loadAllDataAndRender(); }
+        catch(err){
+          let cache = getJSON(LS_KEYS.CAL, []); cache = cache.filter(x=>x.id!==id);
+          setJSON(LS_KEYS.CAL, cache); renderCalendar(mapShiftsToEvents(cache)); renderAgendaList('#agenda-list', mapShiftsToEvents(cache));
         }
       });
     });
   }
-
-  function renderIndennitaChartPlaceholder() {
-    const el = document.getElementById('chart-indennita');
-    if (!el || typeof Chart === 'undefined') return;
-
-    const labels = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const values = Array(12).fill(0);
-
+  function renderIndennitaChartPlaceholder(){
+    const el = document.getElementById('chart-indennita'); if (!el) return;
+    const labels = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'], values = Array(12).fill(0);
     if (_chart) _chart.destroy();
-    _chart = new Chart(el, {
-      type: 'line',
-      data: { labels, datasets: [{ label: 'Indennità', data: values, tension: 0.3, fill: false }] },
-      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-    });
+    _chart = new Chart(el,{ type:'line', data:{ labels, datasets:[{ label:'Indennità', data:values, tension:0.3, fill:false }] }, options:{ maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
   }
-
-  function renderIndennitaChartFromAllowances(allowances) {
-    const el = document.getElementById('chart-indennita');
-    if (!el || typeof Chart === 'undefined') return;
-
-    const labels = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const values = Array(12).fill(0);
-
-    for (const a of (allowances || [])) {
-      const d = new Date(a.date);
-      const m = d.getMonth();
-      const val = parseFloat(a.importo || 0);
-      values[m] += isNaN(val) ? 0 : val;
-    }
-
+  function renderIndennitaChartFromAllowances(allowances){
+    const el = document.getElementById('chart-indennita'); if (!el) return;
+    const labels = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'], values = Array(12).fill(0);
+    for (const a of (allowances||[])){ const m = new Date(a.date).getMonth(); const val = parseFloat(a.importo||0); values[m]+=isNaN(val)?0:val; }
     if (_chart) _chart.destroy();
-    _chart = new Chart(el, {
-      type: 'line',
-      data: { labels, datasets: [{ label: 'Indennità', data: values, tension: 0.3, fill: false }] },
-      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-    });
+    _chart = new Chart(el,{ type:'line', data:{ labels, datasets:[{ label:'Indennità', data:values, tension:0.3, fill:false }] }, options:{ maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
   }
 
   /*********************
    * LOAD & SYNC
    *********************/
-  async function loadAllDataAndRender() {
-    try {
+  async function loadAllDataAndRender(){
+    try{
       const [shifts, allowances] = await Promise.all([fetchShifts(), fetchAllowances()]);
       const events = mapShiftsToEvents(shifts);
-      renderCalendar(events);
-      renderAgendaList('#agenda-list', events);
-      renderIndennitaChartFromAllowances(allowances);
-    } catch (err) {
+      renderCalendar(events); renderAgendaList('#agenda-list', events); renderIndennitaChartFromAllowances(allowances);
+    } catch(err){
       console.warn('loadAllData error, uso cache', err);
-      const cacheShifts = getJSON(LS_KEYS.CAL, []);
-      const cacheAllow = getJSON(LS_KEYS.IND, []);
-      renderCalendar(mapShiftsToEvents(cacheShifts));
-      renderAgendaList('#agenda-list', mapShiftsToEvents(cacheShifts));
-      renderIndennitaChartFromAllowances(cacheAllow);
+      const cS = getJSON(LS_KEYS.CAL, []), cA = getJSON(LS_KEYS.IND, []);
+      renderCalendar(mapShiftsToEvents(cS)); renderAgendaList('#agenda-list', mapShiftsToEvents(cS)); renderIndennitaChartFromAllowances(cA);
     }
   }
 
@@ -704,67 +641,38 @@
   (function tabs(){
     const pages = document.querySelectorAll('.page');
     document.getElementById('mainTabs')?.addEventListener('click', (e)=>{
-      const a = e.target.closest('a[data-target]');
-      if (!a) return;
-      e.preventDefault();
+      const a = e.target.closest('a[data-target]'); if (!a) return; e.preventDefault();
       document.querySelectorAll('#mainTabs .nav-link').forEach(el=>el.classList.remove('active'));
-      a.classList.add('active');
-      pages.forEach(p=>p.classList.remove('active'));
+      a.classList.add('active'); pages.forEach(p=>p.classList.remove('active'));
       document.getElementById(a.dataset.target)?.classList.add('active');
-      if (a.dataset.target === 'page-calendario' && _calendar) {
-        setTimeout(()=>_calendar.updateSize(), 50);
-      }
+      if (a.dataset.target==='page-calendario' && window._calendar){ setTimeout(()=>window._calendar.updateSize(),50); }
     });
   })();
 
   /*********************
-   * FORMS: Turno / Indennità / Assenza
+   * FORMS
    *********************/
-  // Aggiungi turno manuale
   document.getElementById('form-add-turno')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const data = document.getElementById('turno-data').value;
     const tipo = document.getElementById('turno-tipo').value;
     const note = document.getElementById('turno-note').value || null;
     if (!data || !tipo) return;
-
-    try {
-      await upsertShifts([{ date: data, tipo, note, origin: 'manual' }]);
-      await loadAllDataAndRender();
-      document.querySelector('#modalAddTurno .btn-close').click();
-    } catch (err) {
-      const cache = getJSON(LS_KEYS.CAL, []);
-      cache.push({ id: 'cache-'+Math.random().toString(36).slice(2), date: data, tipo, note, origin:'manual' });
-      setJSON(LS_KEYS.CAL, cache);
-      renderCalendar(mapShiftsToEvents(cache));
-      renderAgendaList('#agenda-list', mapShiftsToEvents(cache));
-      document.querySelector('#modalAddTurno .btn-close').click();
-    }
+    try { await upsertShifts([{ date:data, tipo, note, origin:'manual' }]); await loadAllDataAndRender(); document.querySelector('#modalAddTurno .btn-close').click(); }
+    catch(err){ const c=getJSON(LS_KEYS.CAL,[]); c.push({ id:'cache-'+Math.random().toString(36).slice(2), date:data, tipo, note, origin:'manual' }); setJSON(LS_KEYS.CAL,c); renderCalendar(mapShiftsToEvents(c)); renderAgendaList('#agenda-list', mapShiftsToEvents(c)); document.querySelector('#modalAddTurno .btn-close').click(); }
   });
 
-  // Aggiungi indennità
   document.getElementById('form-add-indennita')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const data = document.getElementById('ind-data').value;
     const tipo = document.getElementById('ind-tipo').value;
-    const importo = parseFloat(document.getElementById('ind-importo').value || '0');
+    const importo = parseFloat(document.getElementById('ind-importo').value||'0');
     const note = document.getElementById('ind-note').value || null;
     if (!data || !tipo || isNaN(importo)) return;
-
-    try {
-      await insertAllowance({ date: data, tipo, importo, note });
-      await loadAllDataAndRender();
-      document.querySelector('#modalAddIndennita .btn-close').click();
-    } catch (err) {
-      const cache = getJSON(LS_KEYS.IND, []);
-      cache.push({ date: data, tipo, importo, note });
-      setJSON(LS_KEYS.IND, cache);
-      renderIndennitaChartFromAllowances(cache);
-      document.querySelector('#modalAddIndennita .btn-close').click();
-    }
+    try { await insertAllowance({ date:data, tipo, importo, note }); await loadAllDataAndRender(); document.querySelector('#modalAddIndennita .btn-close').click(); }
+    catch(err){ const c=getJSON(LS_KEYS.IND,[]); c.push({ date:data, tipo, importo, note }); setJSON(LS_KEYS.IND,c); renderIndennitaChartFromAllowances(c); document.querySelector('#modalAddIndennita .btn-close').click(); }
   });
 
-  // Aggiungi assenza (placeholder persistente)
   document.getElementById('form-add-assenza')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const start = document.getElementById('ass-start').value;
@@ -772,78 +680,41 @@
     const tipo  = document.getElementById('ass-tipo').value;
     const note  = document.getElementById('ass-note').value || null;
     if (!start || !end || !tipo) return;
-
-    try {
-      await insertAbsence({ start_date: start, end_date: end, tipo, note });
-      document.querySelector('#modalAddAssenza .btn-close').click();
-    } catch (err) {
-      const cache = getJSON(LS_KEYS.ABS, []);
-      cache.push({ start_date: start, end_date: end, tipo, note });
-      setJSON(LS_KEYS.ABS, cache);
-      document.querySelector('#modalAddAssenza .btn-close').click();
-    }
+    try { await insertAbsence({ start_date:start, end_date:end, tipo, note }); document.querySelector('#modalAddAssenza .btn-close').click(); }
+    catch(err){ const c=getJSON(LS_KEYS.ABS,[]); c.push({ start_date:start, end_date:end, tipo, note }); setJSON(LS_KEYS.ABS,c); document.querySelector('#modalAddAssenza .btn-close').click(); }
   });
 
   /*********************
-   * AGENDA: Generatore turnazione in quinta
+   * AGENDA: turnazione in quinta
    *********************/
   (function agendaRotation(){
     const SEQ = ['sera','pomeriggio','mattina','notte','riposo'];
-
-    function generateRotation({ start, end, startShift }) {
-      const startIdx = SEQ.indexOf(startShift);
-      if (startIdx < 0) throw new Error('Turno iniziale non valido');
-
-      const rows = [];
-      let i = 0;
-      for (const day of daysRange(start, end)) {
-        const tipo = SEQ[(startIdx + i) % SEQ.length];
-        rows.push({ date: fmtISO(day), tipo, note: null, origin: 'auto' });
-        i++;
-      }
-      return rows;
+    function generateRotation({ start, end, startShift }){
+      const startIdx = SEQ.indexOf(startShift); if (startIdx<0) throw new Error('Turno iniziale non valido');
+      const rows=[]; let i=0; for (const day of daysRange(start,end)){ const tipo=SEQ[(startIdx+i)%SEQ.length]; rows.push({ date:fmtISO(day), tipo, note:null, origin:'auto' }); i++; } return rows;
     }
-
     document.getElementById('r-genera')?.addEventListener('click', async ()=>{
-      const ds = document.getElementById('r-start').value;
-      const de = document.getElementById('r-end').value;
-      const shift = document.getElementById('r-start-shift').value;
-      const out = document.getElementById('r-esito');
-
-      try {
-        if (!ds || !de || !shift) throw new Error('Compila data inizio, data fine e turno iniziale.');
-        const dStart = parseISO(ds), dEnd = parseISO(de);
-        if (dEnd < dStart) throw new Error('La data di fine deve essere successiva a quella di inizio.');
-        const rows = generateRotation({ start: dStart, end: dEnd, startShift: shift });
-
-        await upsertShifts(rows);
-        await loadAllDataAndRender();
-        if (out) out.textContent = `Generati ${rows.length} turni fino al ${de}.`;
-      } catch (err) {
-        const cache = getJSON(LS_KEYS.CAL, []);
-        const toAdd = generateRotation({ start: parseISO(ds), end: parseISO(de), startShift: shift })
-          .map(r => ({ id: 'cache-'+Math.random().toString(36).slice(2), ...r }));
-        const merged = [...cache, ...toAdd];
-        setJSON(LS_KEYS.CAL, merged);
-        renderCalendar(mapShiftsToEvents(merged));
-        renderAgendaList('#agenda-list', mapShiftsToEvents(merged));
-        if (out) out.textContent = `Generati (cache) ${toAdd.length} turni fino al ${de}.`;
+      const ds = document.getElementById('r-start').value, de=document.getElementById('r-end').value, shift=document.getElementById('r-start-shift').value, out=document.getElementById('r-esito');
+      try{
+        if (!ds||!de||!shift) throw new Error('Compila data inizio, data fine e turno iniziale.');
+        const dStart=parseISO(ds), dEnd=parseISO(de); if (dEnd<dStart) throw new Error('La data di fine deve essere successiva a quella di inizio.');
+        const rows=generateRotation({ start:dStart, end:dEnd, startShift:shift });
+        await upsertShifts(rows); await loadAllDataAndRender(); if (out) out.textContent=`Generati ${rows.length} turni fino al ${de}.`;
+      }catch(err){
+        const c=getJSON(LS_KEYS.CAL,[]); const toAdd=generateRotation({ start:parseISO(ds), end:parseISO(de), startShift:shift }).map(r=>({ id:'cache-'+Math.random().toString(36).slice(2), ...r }));
+        const merged=[...c,...toAdd]; setJSON(LS_KEYS.CAL,merged); renderCalendar(mapShiftsToEvents(merged)); renderAgendaList('#agenda-list', mapShiftsToEvents(merged)); if (out) out.textContent=`Generati (cache) ${toAdd.length} turni fino al ${de}.`;
       }
     });
   })();
 
   /*********************
-   * CHART placeholder all'avvio
+   * CHART placeholder e init
    *********************/
   renderIndennitaChartPlaceholder();
-
-  /*********************
-   * INIT: controlla sessione
-   *********************/
   checkSessionUI();
 
   /*********************
-   * PWA: Service Worker (ATTIVO)
+   * PWA: Service Worker attivo
    *********************/
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(()=>{});
