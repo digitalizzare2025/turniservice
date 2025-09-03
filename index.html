@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TurniService - Gestione Turni Forze dell'Ordine</title>
   <meta name="theme-color" content="#1f3fa3">
-  <!-- Manifest MUST exist: lo creiamo nel passaggio 3 -->
   <link rel="manifest" href="manifest.webmanifest">
   <!-- Favicon inline per evitare 404 -->
   <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%231f3fa3"/><path d="M32 10l16 8v10c0 11-7 20-16 24-9-4-16-13-16-24V18l16-8z" fill="white"/></svg>'>
@@ -413,7 +412,7 @@
 
   <script>
   /* ========= CONFIG ========= */
-  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   
+  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU";
   const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
