@@ -29,7 +29,7 @@
     /* Overlay login (Magic Link) */
     #auth-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto; }
 
-    /* Classi facoltative per i turni (non alterano la palette) */
+    /* Classi facoltative per i turni (paletta invariata) */
     .turno-sera{}
     .turno-pomeriggio{}
     .turno-mattina{}
@@ -408,21 +408,23 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <!-- SDK Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 
   <script>
   /*********************
-   * CONFIG
+   * CONFIG SUPABASE
    *********************/
-  // ⬇️ INCOLLA QUI i tuoi valori reali
-  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU";                    
+  // ⬇️ Sostituisci con i tuoi valori reali (Settings → API)
+  const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";   // <-- Sostituisci
+  const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";                      // <-- Sostituisci
 
-  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  // UMD: oggetto globale "supabase"
+  const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true   // necessario per il parse del magic link
     }
   });
 
@@ -445,7 +447,6 @@
     const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
     while (cur <= end) { yield new Date(cur); cur.setDate(cur.getDate() + 1); }
   }
-
   const $ = sel => document.querySelector(sel);
 
   /*********************
@@ -465,7 +466,6 @@
       emailTxt.textContent = session.user.email || '';
       btnLogout.classList.remove('d-none');
       $('#btn-profile')?.classList.remove('d-none');
-      // Carica dati utente
       await loadAllDataAndRender();
     } else {
       overlay.style.display = '';
@@ -474,36 +474,39 @@
       emailTxt.textContent = '';
       btnLogout.classList.add('d-none');
       $('#btn-profile')?.classList.add('d-none');
-      // Reset UI minimo (manteniamo comunque calendario vuoto e grafico con placeholder)
       renderCalendar([]);
       renderAgendaList('#agenda-list', []);
       renderIndennitaChartPlaceholder();
     }
   }
 
-  // Invio magic link
-  $('#btn-send-magic')?.addEventListener('click', async (e)=>{
+  // Invio Magic Link con redirect esplicito su GitHub Pages
+  document.getElementById('btn-send-magic')?.addEventListener('click', async (e)=>{
     e.preventDefault();
-    const email = $('#auth-email').value.trim();
-    const msg = $('#auth-msg');
+    const email = document.getElementById('auth-email').value.trim();
+    const msg = document.getElementById('auth-msg');
     if (!email) { msg.textContent = 'Inserisci una email valida.'; return; }
     msg.textContent = 'Invio link magico...';
+
     const { error } = await supa.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin + window.location.pathname } // redirect a questa pagina
+      options: {
+        emailRedirectTo: 'https://digitalizzare2025.github.io/turniservice/'
+      }
     });
-    if (error) { msg.textContent = 'Errore: ' + error.message; return; }
-    msg.textContent = 'Email inviata! Controlla la casella e clicca sul link per accedere.';
+
+    msg.textContent = error ? ('Errore: ' + error.message)
+                            : 'Email inviata! Controlla la casella e clicca sul link per accedere.';
   });
 
   // Logout
-  $('#btn-logout')?.addEventListener('click', async ()=>{
+  document.getElementById('btn-logout')?.addEventListener('click', async ()=>{
     await supa.auth.signOut();
     await checkSessionUI();
   });
 
-  // Reagisci ai cambi sessione (es. dopo redirect del magic link)
-  supa.auth.onAuthStateChange(async (_event, _session)=>{ await checkSessionUI(); });
+  // Reagisci ai cambi sessione (anche dopo il redirect del magic link)
+  supa.auth.onAuthStateChange(async ()=>{ await checkSessionUI(); });
 
   /*********************
    * DATA LAYER (Supabase + cache)
@@ -521,14 +524,12 @@
     setJSON(LS_KEYS.CAL, data || []);
     return data || [];
   }
-
   async function upsertShifts(rows) {
     const uid = await getUserId(); if (!uid) return;
     const payload = rows.map(r => ({ ...r, user_id: uid }));
     const { error } = await supa.from('shifts').upsert(payload, { onConflict: 'user_id,date,tipo' });
     if (error) throw error;
   }
-
   async function deleteShift(id) {
     const uid = await getUserId(); if (!uid) return;
     const { error } = await supa.from('shifts').delete().eq('id', id).eq('user_id', uid);
@@ -543,7 +544,6 @@
     setJSON(LS_KEYS.IND, data || []);
     return data || [];
   }
-
   async function insertAllowance(row) {
     const uid = await getUserId(); if (!uid) return;
     const payload = { ...row, user_id: uid };
@@ -555,8 +555,8 @@
   async function insertAbsence(row) {
     const uid = await getUserId(); if (!uid) return;
     const payload = { ...row, user_id: uid };
-    const { error } = await supa.from('absences').insert(payload);
-    if (error) throw error;
+    theError = (await supa.from('absences').insert(payload)).error;
+    if (theError) throw theError;
   }
 
   /*********************
@@ -623,7 +623,6 @@
       el.appendChild(item);
     }
 
-    // delete
     el.querySelectorAll('[data-del]')?.forEach(a=>{
       a.addEventListener('click', async (e)=>{
         e.preventDefault();
@@ -632,7 +631,6 @@
           await deleteShift(id);
           await loadAllDataAndRender();
         } catch (err) {
-          // fallback cache
           let cache = getJSON(LS_KEYS.CAL, []);
           cache = cache.filter(x => x.id !== id);
           setJSON(LS_KEYS.CAL, cache);
@@ -667,7 +665,7 @@
 
     for (const a of (allowances || [])) {
       const d = new Date(a.date);
-      const m = d.getMonth(); // 0..11
+      const m = d.getMonth();
       const val = parseFloat(a.importo || 0);
       values[m] += isNaN(val) ? 0 : val;
     }
@@ -723,11 +721,11 @@
    * FORMS: Turno / Indennità / Assenza
    *********************/
   // Aggiungi turno manuale
-  $('#form-add-turno')?.addEventListener('submit', async (e)=>{
+  document.getElementById('form-add-turno')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const data = $('#turno-data').value;
-    const tipo = $('#turno-tipo').value;
-    const note = $('#turno-note').value || null;
+    const data = document.getElementById('turno-data').value;
+    const tipo = document.getElementById('turno-tipo').value;
+    const note = document.getElementById('turno-note').value || null;
     if (!data || !tipo) return;
 
     try {
@@ -735,7 +733,6 @@
       await loadAllDataAndRender();
       document.querySelector('#modalAddTurno .btn-close').click();
     } catch (err) {
-      // cache fallback
       const cache = getJSON(LS_KEYS.CAL, []);
       cache.push({ id: 'cache-'+Math.random().toString(36).slice(2), date: data, tipo, note, origin:'manual' });
       setJSON(LS_KEYS.CAL, cache);
@@ -746,12 +743,12 @@
   });
 
   // Aggiungi indennità
-  $('#form-add-indennita')?.addEventListener('submit', async (e)=>{
+  document.getElementById('form-add-indennita')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const data = $('#ind-data').value;
-    const tipo = $('#ind-tipo').value;
-    const importo = parseFloat($('#ind-importo').value || '0');
-    const note = $('#ind-note').value || null;
+    const data = document.getElementById('ind-data').value;
+    const tipo = document.getElementById('ind-tipo').value;
+    const importo = parseFloat(document.getElementById('ind-importo').value || '0');
+    const note = document.getElementById('ind-note').value || null;
     if (!data || !tipo || isNaN(importo)) return;
 
     try {
@@ -759,7 +756,6 @@
       await loadAllDataAndRender();
       document.querySelector('#modalAddIndennita .btn-close').click();
     } catch (err) {
-      // cache fallback (solo per grafico locale)
       const cache = getJSON(LS_KEYS.IND, []);
       cache.push({ date: data, tipo, importo, note });
       setJSON(LS_KEYS.IND, cache);
@@ -768,20 +764,19 @@
     }
   });
 
-  // Aggiungi assenza (placeholder persistente su DB)
-  $('#form-add-assenza')?.addEventListener('submit', async (e)=>{
+  // Aggiungi assenza (placeholder persistente)
+  document.getElementById('form-add-assenza')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const start = $('#ass-start').value;
-    const end   = $('#ass-end').value;
-    const tipo  = $('#ass-tipo').value;
-    const note  = $('#ass-note').value || null;
+    const start = document.getElementById('ass-start').value;
+    const end   = document.getElementById('ass-end').value;
+    const tipo  = document.getElementById('ass-tipo').value;
+    const note  = document.getElementById('ass-note').value || null;
     if (!start || !end || !tipo) return;
 
     try {
       await insertAbsence({ start_date: start, end_date: end, tipo, note });
       document.querySelector('#modalAddAssenza .btn-close').click();
     } catch (err) {
-      // cache fallback
       const cache = getJSON(LS_KEYS.ABS, []);
       cache.push({ start_date: start, end_date: end, tipo, note });
       setJSON(LS_KEYS.ABS, cache);
@@ -794,13 +789,6 @@
    *********************/
   (function agendaRotation(){
     const SEQ = ['sera','pomeriggio','mattina','notte','riposo'];
-    const SHIFT_META = {
-      sera:       { title: 'Turno sera',       className: 'turno-sera' },
-      pomeriggio: { title: 'Turno pomeriggio', className: 'turno-pomeriggio' },
-      mattina:    { title: 'Turno mattina',    className: 'turno-mattina' },
-      notte:      { title: 'Turno notte',      className: 'turno-notte' },
-      riposo:     { title: 'Riposo',           className: 'turno-riposo' }
-    };
 
     function generateRotation({ start, end, startShift }) {
       const startIdx = SEQ.indexOf(startShift);
@@ -816,11 +804,11 @@
       return rows;
     }
 
-    $('#r-genera')?.addEventListener('click', async ()=>{
-      const ds = $('#r-start').value;
-      const de = $('#r-end').value;
-      const shift = $('#r-start-shift').value;
-      const out = $('#r-esito');
+    document.getElementById('r-genera')?.addEventListener('click', async ()=>{
+      const ds = document.getElementById('r-start').value;
+      const de = document.getElementById('r-end').value;
+      const shift = document.getElementById('r-start-shift').value;
+      const out = document.getElementById('r-esito');
 
       try {
         if (!ds || !de || !shift) throw new Error('Compila data inizio, data fine e turno iniziale.');
@@ -832,7 +820,6 @@
         await loadAllDataAndRender();
         if (out) out.textContent = `Generati ${rows.length} turni fino al ${de}.`;
       } catch (err) {
-        // cache fallback
         const cache = getJSON(LS_KEYS.CAL, []);
         const toAdd = generateRotation({ start: parseISO(ds), end: parseISO(de), startShift: shift })
           .map(r => ({ id: 'cache-'+Math.random().toString(36).slice(2), ...r }));
@@ -856,7 +843,7 @@
   checkSessionUI();
 
   /*********************
-   * PWA: Service Worker (facoltativo)
+   * PWA: Service Worker (ATTIVO)
    *********************/
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(()=>{});
