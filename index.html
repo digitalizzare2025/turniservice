@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TurniService - Gestione Turni Forze dell'Ordine</title>
   <meta name="theme-color" content="#1f3fa3">
+  <!-- Manifest MUST exist: lo creiamo nel passaggio 3 -->
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="favicon.ico">
+  <!-- Favicon inline per evitare 404 -->
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%231f3fa3"/><path d="M32 10l16 8v10c0 11-7 20-16 24-9-4-16-13-16-24V18l16-8z" fill="white"/></svg>'>
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- FullCalendar CSS (bundle globale: garantisce la griglia giorni) -->
+  <!-- FullCalendar CSS (bundle globale) -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
   <!-- Icone -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
@@ -27,9 +29,8 @@
     #calendario-app { min-height: 520px; }
     #auth-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto; }
 
-    /* Classi placeholder per i turni (palette invariata) */
+    /* Placeholder classi (non tocchiamo i colori di default) */
     .turno-sera{} .turno-pomeriggio{} .turno-mattina{} .turno-notte{} .turno-riposo{}
-    /* Assenze nel calendario (lasciamo lo stile di default) */
     .absence-event{}
   </style>
 </head>
@@ -412,9 +413,9 @@
 
   <script>
   /* ========= CONFIG ========= */
-  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   // <-- Sostituisci
+  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU
-";                      // <-- Sostituisci
+";
   const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
   });
@@ -539,14 +540,13 @@
     }));
   }
 
-  // Assenze come eventi all-day: end esclusivo (+1 giorno per includere la data finale)
   const add1 = iso => addDays(iso, 1);
   function mapAbsencesToEvents(absences){
     return (absences||[]).map(a=>({
       id:'abs-'+a.id,
       title:`Assenza: ${a.tipo}`,
       start:a.start_date,
-      end:add1(a.end_date),
+      end:add1(a.end_date),      // end esclusivo -> copre anche il giorno finale
       allDay:true,
       className:'absence-event',
       extendedProps:{ kind:'absence', absId:a.id, tipo:a.tipo, start_date:a.start_date, end_date:a.end_date }
@@ -575,7 +575,6 @@
     const el = document.getElementById('agenda-list'); if(!el) return;
     el.innerHTML = '';
 
-    // Turni (singoli giorni)
     const turni = [...(shiftEvents||[])].sort((a,b)=> a.start<b.start ? -1 : 1);
     for(const ev of turni){
       const d = new Date(ev.start);
@@ -594,7 +593,6 @@
       el.appendChild(item);
     }
 
-    // Assenze (range)
     const abs = [...(absenceRows||[])].sort((a,b)=> a.start_date<b.start_date ? -1 : 1);
     for(const a of abs){
       const item = document.createElement('div');
@@ -614,7 +612,6 @@
       el.appendChild(item);
     }
 
-    // Elimina turno
     el.querySelectorAll('[data-del-shift]')?.forEach(a=>{
       a.addEventListener('click', async (e)=>{
         e.preventDefault();
@@ -628,7 +625,6 @@
       });
     });
 
-    // Elimina assenza
     el.querySelectorAll('[data-del-abs]')?.forEach(a=>{
       a.addEventListener('click', async (e)=>{
         e.preventDefault();
@@ -690,7 +686,6 @@
   })();
 
   /* ========= FORMS ========= */
-  // Turno
   document.getElementById('form-add-turno')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const data=$('#turno-data').value, tipo=$('#turno-tipo').value, note=$('#turno-note').value||null, err=$('#err-turno');
@@ -706,7 +701,6 @@
     }
   });
 
-  // Indennità
   document.getElementById('form-add-indennita')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const data=$('#ind-data').value, tipo=$('#ind-tipo').value, importo=parseFloat($('#ind-importo').value||'0'), note=$('#ind-note').value||null, err=$('#err-indennita');
@@ -722,7 +716,6 @@
     }
   });
 
-  // Assenza
   document.getElementById('form-add-assenza')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const start=$('#ass-start').value, end=$('#ass-end').value, tipo=$('#ass-tipo').value, note=$('#ass-note').value||null, err=$('#err-assenza');
@@ -785,11 +778,11 @@
     }
   });
 
-  /* ========= CHART placeholder + INIT ========= */
+  /* ========= INIT ========= */
   renderIndennitaChartPlaceholder();
   checkSessionUI();
 
-  /* ========= Service Worker attivo ========= */
+  /* ========= Service Worker ========= */
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
   </script>
 </body>
