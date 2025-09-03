@@ -1,1188 +1,730 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TurniService - Gestione Turni Forze dell'Ordine</title>
+  <meta name="theme-color" content="#1f3fa3">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="favicon.ico">
 
-  <!-- PWA Meta Tags -->
-  <meta name="description" content="Applicazione per la gestione dei turni e delle indennità delle Forze dell'Ordine" />
-  <meta name="theme-color" content="#1e40af" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="TurniService" />
-
-  <!-- CSS & Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- Bootstrap (solo per layout; non cambio palette) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <!-- (Opzionale) Icone -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
   <style>
-    .calendar-day{min-height:120px;border:1px solid #e5e7eb;cursor:pointer}
-    .calendar-day.today{background-color:#eff6ff;border-color:#3b82f6}
-    .shift-sera{background-color:#fef3c7}
-    .shift-pomeriggio{background-color:#d1fae5}
-    .shift-mattina{background-color:#dbeafe}
-    .shift-notte{background-color:#e0e7ff}
-    .shift-riposo{background-color:#f3f4f6}
-    .absence-badge{display:inline-block;padding:2px 6px;border-radius:6px;font-size:11px;font-weight:600}
-    .absence-congedo-ordinario{background:#fde68a;color:#7c2d12}
-    .absence-congedo-straordinario-malattia{background:#fecaca;color:#7f1d1d}
-    .absence-congedo-straordinario-esami{background:#e9d5ff;color:#4c1d95}
-    .absence-congedo-straordinario-familiari{background:#fee2e2;color:#7f1d1d}
-    .absence-congedo-straordinario-trasferimento{background:#e0f2fe;color:#075985}
-    .absence-riposo-legge{background:#bbf7d0;color:#065f46}
-    .absence-riposo-settimanale{background:#f3e8ff;color:#6b21a8}
-    .absence-riposo-festivo{background:#ffe4e6;color:#9f1239}
-    .absence-riposo-compensativo{background:#dcfce7;color:#14532d}
-    .absence-aspettativa{background:#fef9c3;color:#78350f}
-    .absence-legge-104{background:#bae6fd;color:#0c4a6e}
-    .absence-donazione-sangue{background:#fecdd3;color:#7f1d1d}
-    .absence-ore-studio{background:#fee2b3;color:#7c2d12}
-    .absence-permesso-breve{background:#e5e7eb;color:#111827}
-    .absence-permesso-sindacale{background:#fde68a;color:#78350f}
-    .install-button{position:fixed;bottom:20px;right:20px;z-index:1000;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:50px;padding:12px 24px;font-weight:600;box-shadow:0 4px 20px rgba(59,130,246,.3);transition:all .3s ease;cursor:pointer}
-    .install-button:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(59,130,246,.4)}
-    .install-button.hidden{display:none}
-    .offline-indicator{position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#fff;text-align:center;padding:8px;font-size:14px;z-index:9999;transform:translateY(-100%);transition:transform .3s ease}
-    .offline-indicator.show{transform:translateY(0)}
-    .sync-spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-radius:50%;border-top-color:transparent;animation:spin 1s ease-in-out infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .quick-actions button{min-height:100px;color:#fff!important;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,.1)}
-    .quick-actions button:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.15)}
-    button:focus,input:focus,select:focus,textarea:focus{outline:2px solid #3b82f6;outline-offset:2px}
-    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    /* Struttura base, nessuna modifica palette */
+    body { background:#f4f6f8; }
+    header.navbar { background:#223ea8; }
+    header .navbar-brand, header .nav-link, header .navbar-text { color:#fff !important; }
+    .page { display:none; }
+    .page.active { display:block; }
+    .card { border-radius: 12px; }
+    .quick-action .btn { width:100%; height:64px; }
+    #chart-indennita { min-height: 280px; display: block; }
+
+    /* Calendario sempre visibile: altezza auto responsiva */
+    #calendario-app { min-height: 520px; }
+
+    /* Overlay login (OTP demo) */
+    #auth-overlay {
+      position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto;
+    }
+
+    /* Classi facoltative per i turni (non cambiano colori globali) */
+    .turno-sera{}
+    .turno-pomeriggio{}
+    .turno-mattina{}
+    .turno-notte{}
+    .turno-riposo{}
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-900">
-  <!-- Offline Indicator -->
-  <div id="offline-indicator" class="offline-indicator" role="status" aria-live="polite">
-    <i class="fas fa-wifi-slash mr-2"></i>Modalità offline attiva - i dati verranno sincronizzati quando tornerai online
-  </div>
+<body>
 
-  <!-- PWA Install Button -->
-  <button id="install-button" class="install-button hidden" aria-label="Installa app">
-    <i class="fas fa-download mr-2" aria-hidden="true"></i>Installa App
-  </button>
-
-  <!-- Auth Screen -->
-  <div id="auth-screen" class="min-h-screen flex items-center justify-center py-10 px-4">
-    <div class="w-full max-w-md space-y-6">
-      <div class="text-center">
-        <div class="mx-auto h-20 w-20 bg-blue-600 rounded-full flex items-center justify-center" aria-hidden="true">
-          <i class="fas fa-shield-alt text-white text-2xl"></i>
-        </div>
-        <h1 class="mt-4 text-3xl font-extrabold">TurniService</h1>
-        <p class="text-sm text-gray-600">Gestione Turni Forze dell'Ordine</p>
-        <div class="mt-2">
-          <span id="connection-status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            <i class="fas fa-wifi mr-1"></i>Online
-          </span>
-        </div>
-      </div>
-
-      <!-- Registration Form -->
-      <form id="registration-form" onsubmit="handleRegistration(event)" aria-label="Registrazione" class="space-y-4">
-        <div class="grid grid-cols-1 gap-3">
-          <input id="reg-nome" name="nome" type="text" required autocomplete="given-name"
-                 class="w-full px-3 py-2 border rounded-md" placeholder="Nome" aria-label="Nome" />
-          <input id="reg-cognome" name="cognome" type="text" required autocomplete="family-name"
-                 class="w-full px-3 py-2 border rounded-md" placeholder="Cognome" aria-label="Cognome" />
-          <input id="reg-email" name="email" type="email" required autocomplete="email"
-                 class="w-full px-3 py-2 border rounded-md" placeholder="Email istituzionale" aria-label="Email" />
-          <select id="reg-forza" name="forza" required class="w-full px-3 py-2 border rounded-md" aria-label="Forza di appartenenza">
-            <option value="">Seleziona Forza di Appartenenza</option>
-            <optgroup label="Forze Armate">
-              <option value="carabinieri">Carabinieri</option>
-              <option value="guardia-finanza">Guardia di Finanza</option>
-            </optgroup>
-            <optgroup label="Forze dell'Ordine">
-              <option value="polizia-stato">Polizia di Stato</option>
-              <option value="polizia-penitenziaria">Polizia Penitenziaria</option>
-            </optgroup>
-          </select>
-          <input id="reg-grado" name="grado" type="text" required class="w-full px-3 py-2 border rounded-md" placeholder="Grado" aria-label="Grado" />
-        </div>
-        <button type="submit" id="btn-registrati" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
-          <i class="fas fa-user-plus mr-2"></i>Registrati
-        </button>
-        <p class="text-center text-sm">
-          Hai già un account?
-          <button type="button" onclick="switchToLogin()" class="text-indigo-600 hover:text-indigo-500 underline">Accedi</button>
-        </p>
-      </form>
-
-      <!-- Login Form -->
-      <form id="login-form" onsubmit="handleLogin(event)" aria-label="Login" class="space-y-4 hidden">
-        <input id="login-email" name="email" type="email" required autocomplete="email"
-               class="w-full px-3 py-2 border rounded-md" placeholder="Email istituzionale" aria-label="Email" />
-        <button type="submit" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
-          <i class="fas fa-paper-plane mr-2"></i>Invia Codice di Verifica
-        </button>
-        <p class="text-center text-sm">
-          Non hai un account?
-          <button type="button" onclick="switchToRegistration()" class="text-indigo-600 hover:text-indigo-500 underline">Registrati</button>
-        </p>
-      </form>
-
-      <!-- OTP Form -->
-       <form id="otp-form" onsubmit="handleOTPVerification(event)" class="space-y-4 hidden" aria-label="Verifica OTP">
-        <div class="text-center">
-          <i class="fas fa-envelope text-3xl text-indigo-600 mb-2"></i>
-          <h3 class="text-lg font-medium">Codice inviato!</h3>
-          <p class="text-sm text-gray-600">Email: <span id="otp-email" class="font-medium text-indigo-600"></span></p>
-        </div>
-        <input id="otp-code" name="otp" type="text" maxlength="6" required inputmode="numeric"
-               class="w-full px-3 py-2 border rounded-md text-center text-2xl tracking-widest" placeholder="123456" aria-label="Codice OTP" />
-        <div class="bg-blue-50 p-3 rounded-md text-blue-700 text-sm">
-          <strong>Demo:</strong> Usa il codice <span class="font-mono font-bold">123456</span> per accedere
-        </div>
-        <button type="submit" class="w-full py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-medium">
-          <i class="fas fa-sign-in-alt mr-2"></i>Verifica e Accedi
-        </button>
-        <div class="text-center space-x-3">
-          <button type="button" onclick="resendOTP()" class="text-indigo-600 hover:text-indigo-500 text-sm underline">Invia nuovamente</button>
-          <button type="button" onclick="backToLogin()" class="text-gray-600 hover:text-gray-800 text-sm underline">Torna al login</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-
-
-  <!-- Main Application -->
-  <div id="main-app" class="hidden">
-    <!-- Nav -->
-    <nav class="bg-blue-800 text-white p-4">
-      <div class="container mx-auto flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-          <i class="fas fa-shield-alt text-2xl"></i>
-          <h1 class="text-xl font-bold">TurniService</h1>
-          <span id="sync-status" class="hidden"><span class="sync-spinner" aria-hidden="true"></span><span class="sr-only">Sincronizzazione...</span></span>
-        </div>
-        <div class="flex items-center space-x-3 text-sm">
-          <span id="user-info" aria-live="polite"></span>
-          <span id="connection-status-nav" class="text-xs bg-green-600 px-2 py-1 rounded">Online</span>
-          <button onclick="showProfile()" class="bg-blue-700 px-3 py-1 rounded hover:bg-blue-600"><i class="fas fa-user"></i> Profilo</button>
-          <button onclick="logout()" class="bg-red-600 px-3 py-1 rounded hover:bg-red-500"><i class="fas fa-sign-out-alt"></i></button>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Tabs -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
-      <div class="container mx-auto">
-        <nav class="flex space-x-6 overflow-x-auto px-4" role="tablist" aria-label="Sezioni applicazione">
-          <button onclick="showTab('dashboard', event)" class="tab-btn py-3 border-b-2 border-blue-500 text-blue-600 font-medium text-sm" role="tab" aria-selected="true">Dashboard</button>
-          <button onclick="showTab('calendar', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Calendario</button>
-          <button onclick="showTab('agenda', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Agenda</button>
-          <button onclick="showTab('absences', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Assenze</button>
-          <button onclick="showTab('search', event)" class="tab-btn py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-800 text-sm" role="tab" aria-selected="false">Ricerca</button>
-        </nav>
+  <!-- NAVBAR -->
+  <header class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+        <i class="bi bi-shield-lock"></i> <span>TurniService</span>
+      </a>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="badge bg-success">Online</span>
+        <a class="btn btn-light btn-sm" href="#" id="btn-profile"><i class="bi bi-person-circle me-1"></i>Profilo</a>
+        <button class="btn btn-danger btn-sm" id="btn-logout"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </div>
+  </header>
 
-    <!-- Dashboard -->
-    <section id="dashboard-tab" class="tab-content container mx-auto p-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-5 rounded-lg shadow">
-          <div class="flex items-center">
-            <div class="p-3 rounded-full bg-green-100 text-green-500"><i class="fas fa-euro-sign text-xl"></i></div>
-            <div class="ml-4"><p class="text-sm text-gray-600">Indennità Mese</p><p id="monthly-total" class="text-2xl font-semibold">€0,00</p></div>
-          </div>
+  <!-- TABS -->
+  <nav class="border-bottom bg-white">
+    <div class="container py-2">
+      <ul class="nav nav-tabs" id="mainTabs">
+        <li class="nav-item"><a class="nav-link active" data-target="page-dashboard" href="#">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="page-calendario" href="#">Calendario</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="page-agenda" href="#">Agenda</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="page-assenze" href="#">Assenze</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="page-ricerca" href="#">Ricerca</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="container my-4">
+
+    <!-- DASHBOARD -->
+    <section id="page-dashboard" class="page active">
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <div class="card"><div class="card-body">
+            <div class="d-flex align-items-center gap-3">
+              <div class="display-6">€</div>
+              <div>
+                <div class="small text-muted">Indennità Mese</div>
+                <div class="fw-bold fs-4" id="val-indennita-mese">€0,00</div>
+              </div>
+            </div>
+          </div></div>
         </div>
-        <div class="bg-white p-5 rounded-lg shadow">
-          <div class="flex items-center">
-            <div class="p-3 rounded-full bg-blue-100 text-blue-500"><i class="fas fa-clock text-xl"></i></div>
-            <div class="ml-4"><p class="text-sm text-gray-600">Ore Straordinario</p><p id="overtime-hours" class="text-2xl font-semibold">0</p></div>
-          </div>
+        <div class="col-12 col-md-3">
+          <div class="card"><div class="card-body">
+            <div class="small text-muted">Ore Straordinario</div>
+            <div class="fw-bold fs-4" id="val-straordinario">0</div>
+          </div></div>
         </div>
-        <div class="bg-white p-5 rounded-lg shadow">
-          <div class="flex items-center">
-            <div class="p-3 rounded-full bg-orange-100 text-orange-500"><i class="fas fa-calendar-alt text-xl"></i></div>
-            <div class="ml-4"><p class="text-sm text-gray-600">Giorni Congedo</p><p id="leave-days" class="text-2xl font-semibold">0</p></div>
-          </div>
+        <div class="col-12 col-md-3">
+          <div class="card"><div class="card-body">
+            <div class="small text-muted">Giorni Congedo</div>
+            <div class="fw-bold fs-4" id="val-congedo">0</div>
+          </div></div>
         </div>
-        <div class="bg-white p-5 rounded-lg shadow">
-          <div class="flex items-center">
-            <div class="p-3 rounded-full bg-purple-100 text-purple-500"><i class="fas fa-user-clock text-xl"></i></div>
-            <div class="ml-4"><p class="text-sm text-gray-600">Turni Mese</p><p id="shifts-count" class="text-2xl font-semibold">0</p></div>
+        <div class="col-12 col-md-3">
+          <div class="card"><div class="card-body">
+            <div class="small text-muted">Turni Mese</div>
+            <div class="fw-bold fs-4" id="val-turni-mese">0</div>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="card my-4">
+        <div class="card-body">
+          <h5 class="mb-3">Azioni Rapide</h5>
+          <div class="row g-3">
+            <div class="col-12 col-md-6 col-lg-3"><button class="btn btn-primary quick-action" data-bs-toggle="modal" data-bs-target="#modalAddTurno"><i class="bi bi-plus-circle me-2"></i>Aggiungi Turno</button></div>
+            <div class="col-12 col-md-6 col-lg-3"><button class="btn btn-success quick-action" data-bs-toggle="modal" data-bs-target="#modalAddIndennita"><i class="bi bi-currency-euro me-2"></i>Indennità</button></div>
+            <div class="col-12 col-md-6 col-lg-3"><button class="btn btn-danger quick-action" data-bs-toggle="modal" data-bs-target="#modalAddAssenza"><i class="bi bi-calendar-x me-2"></i>Assenza</button></div>
+            <div class="col-12 col-md-6 col-lg-3"><button class="btn btn-secondary quick-action" id="btn-backup"><i class="bi bi-download me-2"></i>Backup</button></div>
           </div>
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6 quick-actions">
-        <h3 class="text-lg font-semibold mb-3">Azioni Rapide</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <button onclick="addShift()" class="bg-blue-500 rounded-lg p-5 hover:bg-blue-600 focus:ring-2 focus:ring-blue-300"><i class="fas fa-plus-circle text-2xl mb-1"></i><div class="font-semibold">Aggiungi Turno</div></button>
-          <button onclick="addAllowance()" class="bg-green-500 rounded-lg p-5 hover:bg-green-600 focus:ring-2 focus:ring-green-300"><i class="fas fa-euro-sign text-2xl mb-1"></i><div class="font-semibold">Indennità</div></button>
-          <button onclick="addAbsence()" class="bg-red-500 rounded-lg p-5 hover:bg-red-600 focus:ring-2 focus:ring-red-300"><i class="fas fa-calendar-times text-2xl mb-1"></i><div class="font-semibold">Assenza</div></button>
-          <button onclick="backupData()" class="bg-purple-500 rounded-lg p-5 hover:bg-purple-600 focus:ring-2 focus:ring-purple-300"><i class="fas fa-download text-2xl mb-1"></i><div class="font-semibold">Backup</div></button>
+      <div class="card my-4">
+        <div class="card-body">
+          <h5 class="mb-3">Andamento Indennità Mensili</h5>
+          <div style="height:320px">
+            <canvas id="chart-indennita" role="img" aria-label="Andamento Indennità Mensili"></canvas>
+          </div>
         </div>
-      </div>
-
-      <!-- Monthly Chart -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold mb-3">Andamento Indennità Mensili</h3>
-        <div style="height: 360px;"><canvas id="monthlyChart" aria-label="Grafico indennità mensili" role="img"></canvas></div>
       </div>
     </section>
 
-    <!-- Calendar -->
-    <section id="calendar-tab" class="tab-content hidden container mx-auto p-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold" id="calendar-title">Calendario</h2>
-          <div class="flex space-x-2">
-            <button onclick="previousMonth()" class="bg-gray-200 p-2 rounded hover:bg-gray-300" aria-label="Mese precedente"><i class="fas fa-chevron-left"></i></button>
-            <button onclick="nextMonth()" class="bg-gray-200 p-2 rounded hover:bg-gray-300" aria-label="Mese successivo"><i class="fas fa-chevron-right"></i></button>
+    <!-- CALENDARIO -->
+    <section id="page-calendario" class="page">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="mb-3">Calendario</h4>
+          <div class="mb-2 small">
+            <span class="me-3"><span class="badge bg-light text-dark">Sera</span></span>
+            <span class="me-3"><span class="badge bg-light text-dark">Pomeriggio</span></span>
+            <span class="me-3"><span class="badge bg-light text-dark">Mattina</span></span>
+            <span class="me-3"><span class="badge bg-light text-dark">Notte</span></span>
+            <span class="me-3"><span class="badge bg-light text-dark">Riposo</span></span>
+            <span class="me-3"><span class="badge bg-success">Assenze</span></span>
+          </div>
+          <div id="calendario-app" aria-label="Calendario turni"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AGENDA -->
+    <section id="page-agenda" class="page">
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Agenda</h4>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddTurno"><i class="bi bi-plus-circle me-2"></i>Aggiungi Turno</button>
           </div>
         </div>
+      </div>
 
-        <!-- Legend -->
-        <div class="flex flex-wrap gap-4 mb-3 text-sm">
-          <div class="flex items-center"><span class="w-4 h-4 shift-sera mr-2"></span>Sera</div>
-          <div class="flex items-center"><span class="w-4 h-4 shift-pomeriggio mr-2"></span>Pomeriggio</div>
-          <div class="flex items-center"><span class="w-4 h-4 shift-mattina mr-2"></span>Mattina</div>
-          <div class="flex items-center"><span class="w-4 h-4 shift-notte mr-2"></span>Notte</div>
-          <div class="flex items-center"><span class="w-4 h-4 shift-riposo mr-2"></span>Riposo</div>
-          <div class="flex items-center"><span class="absence-badge absence-riposo-legge mr-2"></span><span>Assenze</span></div>
+      <!-- Generatore turnazione in quinta -->
+      <div class="card mb-3" id="turnazione-quinta">
+        <div class="card-body">
+          <h5 class="mb-3">Imposta Turnazione in Quinta</h5>
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+              <label for="r-start" class="form-label">Data inizio</label>
+              <input type="date" id="r-start" class="form-control">
+            </div>
+            <div class="col-12 col-md-3">
+              <label for="r-end" class="form-label">Data fine</label>
+              <input type="date" id="r-end" class="form-control">
+            </div>
+            <div class="col-12 col-md-3">
+              <label for="r-start-shift" class="form-label">Turno iniziale</label>
+              <select id="r-start-shift" class="form-select">
+                <option value="sera">Sera</option>
+                <option value="pomeriggio">Pomeriggio</option>
+                <option value="mattina">Mattina</option>
+                <option value="notte">Notte</option>
+                <option value="riposo">Riposo</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <button id="r-genera" class="btn btn-success w-100"><i class="bi bi-arrow-repeat me-2"></i>Genera turni</button>
+            </div>
+          </div>
+          <p id="r-esito" class="mt-2 small text-muted" aria-live="polite"></p>
         </div>
+      </div>
 
-        <div class="grid grid-cols-7 gap-1" id="calendar-grid" aria-label="Griglia calendario"></div>
+      <!-- Lista agenda -->
+      <div class="card">
+        <div class="card-body">
+          <div id="agenda-list" class="vstack gap-3"></div>
+        </div>
       </div>
     </section>
 
-    <!-- Agenda -->
-    <section id="agenda-tab" class="tab-content hidden container mx-auto p-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Agenda</h2>
-          <button onclick="addShift()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            <i class="fas fa-plus mr-2"></i>Aggiungi Turno
-          </button>
+    <!-- ASSENZE -->
+    <section id="page-assenze" class="page">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="mb-3">Gestione Assenze</h4>
+          <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalAddAssenza">Aggiungi Assenza</button>
+          <div class="row mt-4">
+            <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="small text-muted">Congedi Ordinari</div><div class="fs-4 fw-bold">0</div></div></div>
+            <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="small text-muted">Congedi Straordinari</div><div class="fs-4 fw-bold">0</div></div></div>
+            <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="small text-muted">Permessi Brevi</div><div class="fs-4 fw-bold">0</div></div></div>
+            <div class="col-6 col-md-3"><div class="border rounded p-3"><div class="small text-muted">Riposi Legge</div><div class="fs-4 fw-bold">0</div></div></div>
+          </div>
         </div>
-        <div id="agenda-list" class="space-y-3" aria-live="polite"></div>
       </div>
     </section>
 
-    <!-- Absences -->
-    <section id="absences-tab" class="tab-content hidden container mx-auto p-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Gestione Assenze</h2>
-          <button onclick="addAbsence()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
-            <i class="fas fa-plus mr-2"></i>Aggiungi Assenza
-          </button>
+    <!-- RICERCA -->
+    <section id="page-ricerca" class="page">
+      <div class="card">
+        <div class="card-body">
+          <h4 class="mb-3">Ricerca</h4>
+          <form id="form-ricerca" class="row g-3">
+            <div class="col-12 col-md-3">
+              <label class="form-label">Tipo</label>
+              <select class="form-select" id="ricerca-tipo">
+                <option value="tutti">Tutti</option>
+                <option value="turni">Turni</option>
+                <option value="assenze">Assenze</option>
+                <option value="indennita">Indennità</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Data Da</label>
+              <input type="date" class="form-control" id="ricerca-da">
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Data A</label>
+              <input type="date" class="form-control" id="ricerca-a">
+            </div>
+            <div class="col-12 col-md-3 d-flex align-items-end">
+              <button class="btn btn-primary w-100" type="submit">Cerca</button>
+            </div>
+          </form>
+          <div id="ricerca-risultati" class="mt-3"></div>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div class="bg-blue-50 p-4 rounded-lg"><h4 class="font-semibold text-blue-800">Congedi Ordinari</h4><p id="congedi-ordinari" class="text-2xl font-bold text-blue-600">0</p></div>
-          <div class="bg-green-50 p-4 rounded-lg"><h4 class="font-semibold text-green-800">Congedi Straordinari</h4><p id="congedi-straordinari" class="text-2xl font-bold text-green-600">0</p></div>
-          <div class="bg-orange-50 p-4 rounded-lg"><h4 class="font-semibold text-orange-800">Permessi Brevi</h4><p id="permessi-brevi" class="text-2xl font-bold text-orange-600">0</p></div>
-          <div class="bg-purple-50 p-4 rounded-lg"><h4 class="font-semibold text-purple-800">Riposi Legge</h4><p id="riposi-legge" class="text-2xl font-bold text-purple-600">0</p></div>
-        </div>
-        <div id="absences-list" class="space-y-3"></div>
       </div>
     </section>
 
-    <!-- Search -->
-    <section id="search-tab" class="tab-content hidden container mx-auto p-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-2xl font-bold mb-4">Ricerca</h2>
-        <div class="grid grid-cols-1 md-grid-cols-3 gap-3 mb-3">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <select id="search-type" class="w-full p-2 border rounded">
-              <option value="">Tutti</option>
-              <option value="shift">Turni</option>
-              <option value="absence">Assenze</option>
-              <option value="allowance">Indennità</option>
+  </main>
+
+  <!-- MODAL: Aggiungi Turno -->
+  <div class="modal fade" id="modalAddTurno" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" id="form-add-turno">
+        <div class="modal-header">
+          <h5 class="modal-title">Aggiungi Turno</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Data</label>
+            <input type="date" class="form-control" id="turno-data" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo Turno</label>
+            <select class="form-select" id="turno-tipo" required>
+              <option value="">Seleziona...</option>
+              <option value="sera">Sera</option>
+              <option value="pomeriggio">Pomeriggio</option>
+              <option value="mattina">Mattina</option>
+              <option value="notte">Notte</option>
+              <option value="riposo">Riposo</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Data Da</label>
-            <input type="date" id="search-from" class="w-full p-2 border rounded" />
+            <label class="form-label">Note</label>
+            <textarea class="form-control" id="turno-note" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Annulla</button>
+          <button class="btn btn-primary" type="submit">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Aggiungi Indennità -->
+  <div class="modal fade" id="modalAddIndennita" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" id="form-add-indennita">
+        <div class="modal-header">
+          <h5 class="modal-title">Aggiungi Indennità</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Data</label>
+            <input type="date" class="form-control" id="ind-data" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo Indennità</label>
+            <select class="form-select" id="ind-tipo" required>
+              <option value="">Seleziona...</option>
+              <option>Ordine Pubblico</option>
+              <option>Servizio Esterno</option>
+              <option>Cambio Turno</option>
+              <option>Missione</option>
+              <option>Reperibilità</option>
+              <option>Rimborso Forfettario</option>
+              <option>Buono Pasto</option>
+              <option>Straordinario Emergente</option>
+              <option>Straordinario Programmato</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Importo (€)</label>
+            <input type="number" step="0.01" min="0" class="form-control" id="ind-importo" required>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Data A</label>
-            <input type="date" id="search-to" class="w-full p-2 border rounded" />
+            <label class="form-label">Note</label>
+            <textarea class="form-control" id="ind-note" rows="2"></textarea>
           </div>
         </div>
-        <button onclick="performSearch()" class="mt-1 bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600">
-          <i class="fas fa-search mr-2"></i>Cerca
-        </button>
-        <div id="search-results" class="mt-4 space-y-3"></div>
-      </div>
-    </section>
-  </div>
-
-  <!-- Day Actions Modal -->
-  <div id="day-actions-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="flex justify-between items-center mb-4">
-        <h3 id="day-actions-title" class="text-lg font-semibold">Azioni per il giorno</h3>
-        <button onclick="closeModal('day-actions-modal')" class="text-gray-400 hover:text-gray-600" aria-label="Chiudi">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div id="day-actions-content" class="space-y-3"></div>
-    </div>
-  </div>
-
-  <!-- Profile / Shift / Allowance / Absence Modals -->
-  <div id="profile-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold">Impostazioni Profilo</h3>
-        <button onclick="closeModal('profile-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-      </div>
-      <form onsubmit="updateProfile(event)" class="space-y-3">
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Forza</label><input type="text" id="profile-forza" class="w-full p-2 border rounded" readonly /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Grado</label><input type="text" id="profile-grado" class="w-full p-2 border rounded" /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">IRPEF (%)</label><input type="number" id="profile-irpef" class="w-full p-2 border rounded" step="0.1" min="0" max="50" /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Turnazione</label>
-          <select id="profile-turnazione" class="w-full p-2 border rounded">
-            <option value="quinta">Turno in Quinta</option>
-            <option value="terza">Turno in Terza</option>
-            <option value="ufficio">Orari da Ufficio</option>
-          </select>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <button type="button" onclick="closeModal('profile-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
-          <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Salva</button>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Annulla</button>
+          <button class="btn btn-primary" type="submit">Salva</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="shift-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold" id="shift-modal-title">Aggiungi Turno</h3>
-        <button onclick="closeModal('shift-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-      </div>
-      <form onsubmit="saveShift(event)" class="space-y-3">
-        <input type="hidden" id="edit-shift-id" />
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data</label><input type="date" id="shift-date" class="w-full p-2 border rounded" required /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo Turno</label>
-          <select id="shift-type" class="w-full p-2 border rounded" required>
-            <option value="">Seleziona...</option>
-            <option value="sera">Sera</option>
-            <option value="pomeriggio">Pomeriggio</option>
-            <option value="mattina">Mattina</option>
-            <option value="notte">Notte</option>
-            <option value="riposo">Riposo</option>
-          </select>
+  <!-- MODAL: Aggiungi Assenza -->
+  <div class="modal fade" id="modalAddAssenza" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form class="modal-content" id="form-add-assenza">
+        <div class="modal-header">
+          <h5 class="modal-title">Aggiungi Assenza</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Note</label><textarea id="shift-notes" class="w-full p-2 border rounded" rows="3"></textarea></div>
-        <div class="mt-4 flex justify-end gap-2">
-          <button type="button" onclick="closeModal('shift-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
-          <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Salva</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="allowance-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold">Aggiungi Indennità</h3>
-        <button onclick="closeModal('allowance-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-      </div>
-      <form onsubmit="saveAllowance(event)" class="space-y-3">
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data</label><input type="date" id="allowance-date" class="w-full p-2 border rounded" required /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo Indennità</label>
-          <select id="allowance-type" class="w-full p-2 border rounded" required>
-            <option value="">Seleziona...</option>
-            <option value="ordine-pubblico">Ordine Pubblico</option>
-            <option value="servizio-esterno">Servizio Esterno</option>
-            <option value="cambio-turno">Cambio Turno</option>
-            <option value="missione">Missione</option>
-            <option value="reperibilita">Reperibilità</option>
-            <option value="rimborso-forfettario">Rimborso Forfettario</option>
-            <option value="buono-pasto">Buono Pasto</option>
-            <option value="straordinario-emergente">Straordinario Emergente</option>
-            <option value="straordinario-programmato">Straordinario Programmato</option>
-          </select>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Importo (€)</label><input type="number" id="allowance-amount" class="w-full p-2 border rounded" step="0.01" min="0" required /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Note</label><textarea id="allowance-notes" class="w-full p-2 border rounded" rows="3"></textarea></div>
-        <div class="mt-4 flex justify-end gap-2">
-          <button type="button" onclick="closeModal('allowance-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
-          <button type="submit" class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">Salva</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="absence-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold" id="absence-modal-title">Aggiungi Assenza</h3>
-        <button onclick="closeModal('absence-modal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-      </div>
-      <form onsubmit="saveAbsence(event)" class="space-y-3">
-        <input type="hidden" id="edit-absence-id" />
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data Inizio</label><input type="date" id="absence-start" class="w-full p-2 border rounded" required /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data Fine</label><input type="date" id="absence-end" class="w-full p-2 border rounded" required /></div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo Assenza</label>
-          <select id="absence-type" class="w-full p-2 border rounded" required>
-            <option value="">Seleziona...</option>
-            <option value="congedo-ordinario">Congedo Ordinario</option>
-            <option value="congedo-straordinario-malattia">Congedo Straordinario per Malattia</option>
-            <option value="congedo-straordinario-esami">Congedo Straordinario per Esami</option>
-            <option value="congedo-straordinario-familiari">Congedo Straordinario per Gravi Motivi Familiari</option>
-            <option value="congedo-straordinario-trasferimento">Congedo Straordinario per Trasferimento</option>
-            <option value="riposo-legge">Riposo Legge</option>
-            <option value="riposo-settimanale">Riposo Settimanale</option>
-            <option value="riposo-festivo">Riposo Festivo</option>
-            <option value="riposo-compensativo">Riposo Compensativo</option>
-            <option value="aspettativa">Aspettativa</option>
-            <option value="legge-104">Legge 104</option>
-            <option value="donazione-sangue">Donazione Sangue</option>
-            <option value="ore-studio">Ore di Studio</option>
-            <option value="permesso-breve">Permesso Breve</option>
-            <option value="permesso-sindacale">Permesso Sindacale</option>
-          </select>
-        </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-1">Note</label><textarea id="absence-notes" class="w-full p-2 border rounded" rows="3"></textarea></div>
-        <div class="mt-4 flex justify-end gap-2">
-          <button type="button" onclick="closeModal('absence-modal')" class="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Annulla</button>
-          <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Salva</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
- <script>
-  // ====== PWA Variables ======
-  let deferredPrompt;
-  let isOnline = navigator.onLine;
-
-  // ====== Data Stores ======
-  let currentUser = null;
-  let currentDate = new Date();
-  let shifts = JSON.parse(localStorage.getItem('shifts') || '[]');
-  let allowances = JSON.parse(localStorage.getItem('allowances') || '[]');
-  let absences = JSON.parse(localStorage.getItem('absences') || '[]');
-  let monthlyChart = null;
-
-  // ====== Registered Users (demo) ======
-  let registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
-  let currentLoginEmail = '';
-  let generatedOTP = '';
-
-  // ====== PWA Manifest + Service Worker ======
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      // Inject manifest dynamically
-      const manifest = {
-        name: "TurniService - Gestione Turni Forze dell'Ordine",
-        short_name: "TurniService",
-        description: "Applicazione per la gestione dei turni e delle indennità delle Forze dell'Ordine",
-        start_url: "./",
-        display: "standalone",
-        theme_color: "#1e40af",
-        background_color: "#f3f4f6",
-        orientation: "portrait",
-        categories: ["productivity", "business"],
-        icons: [
-          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\" fill=\"#1e40af\"><circle cx=\"256\" cy=\"256\" r=\"256\" fill=\"#1e40af\"/><path d=\"M256 100l50 25v150l-50 25-50-25V125l50-25z\" fill=\"white\"/></svg>'), sizes: "512x512", type: "image/svg+xml" },
-          { src: "data:image/svg+xml;base64," + btoa('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 192\" fill=\"#1e40af\"><circle cx=\"96\" cy=\"96\" r=\"96\" fill=\"#1e40af\"/><path d=\"M96 40l24 12v75l-24 12-24-12V52l24-12z\" fill=\"white\"/></svg>'), sizes: "192x192", type: "image/svg+xml" }
-        ]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-      const manifestURL = URL.createObjectURL(manifestBlob);
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = manifestURL;
-      document.head.appendChild(link);
-
-      // Register SW
-      const swScript = `
-        const CACHE_NAME = 'turniservice-v3';
-        const urlsToCache = [
-          './',
-          'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css',
-          'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css',
-          'https://cdn.jsdelivr.net/npm/chart.js'
-        ];
-        self.addEventListener('install', event => {
-          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
-        });
-        self.addEventListener('activate', event => {
-          event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
-        });
-        self.addEventListener('fetch', event => {
-          event.respondWith(
-            caches.match(event.request).then(response => response || fetch(event.request).catch(() => caches.match('./')))
-          );
-        });
-      `;
-      const blob = new Blob([swScript], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(blob);
-      navigator.serviceWorker.register(swUrl).catch(console.error);
-    });
-  }
-
-  // ====== PWA Install Prompt ======
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('install-button').classList.remove('hidden');
-  });
-  document.getElementById('install-button').addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      document.getElementById('install-button').classList.add('hidden');
-      deferredPrompt = null;
-    }
-  });
-
-  // ====== Online/Offline ======
-  window.addEventListener('online', () => { isOnline = true; updateConnectionStatus(); document.getElementById('offline-indicator').classList.remove('show'); });
-  window.addEventListener('offline', () => { isOnline = false; updateConnectionStatus(); document.getElementById('offline-indicator').classList.add('show'); });
-  function updateConnectionStatus() {
-    const el = document.getElementById('connection-status');
-    const el2 = document.getElementById('connection-status-nav');
-    if (!el || !el2) return;
-    if (isOnline) {
-      el.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800';
-      el.innerHTML = '<i class="fas fa-wifi mr-1"></i>Online';
-      el2.className = 'text-xs bg-green-600 px-2 py-1 rounded';
-      el2.textContent = 'Online';
-    } else {
-      el.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800';
-      el.innerHTML = '<i class="fas fa-wifi-slash mr-1"></i>Offline';
-      el2.className = 'text-xs bg-red-600 px-2 py-1 rounded';
-      el2.textContent = 'Offline';
-    }
-  }
-
-  // ====== Auth ======
-  function handleRegistration(event) {
-    event.preventDefault();
-    try {
-      const form = event.target;
-      const userData = {
-        nome: form.nome.value.trim(),
-        cognome: form.cognome.value.trim(),
-        email: form.email.value.trim().toLowerCase(),
-        forza: form.forza.value,
-        grado: form.grado.value.trim(),
-        irpef: 23,
-        turnazione: 'quinta',
-        registeredAt: new Date().toISOString()
-      };
-      if (!userData.nome || !userData.cognome || !userData.email || !userData.forza || !userData.grado) {
-        alert('Compila tutti i campi.');
-        return;
-      }
-      if (registeredUsers[userData.email]) {
-        alert('Utente già registrato con questa email. Usa il login.');
-        switchToLogin();
-        document.getElementById('login-email').value = userData.email;
-        return;
-      }
-      registeredUsers[userData.email] = userData;
-      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-      alert('Registrazione completata! Ora effettua il login.');
-      switchToLogin();
-      document.getElementById('login-email').value = userData.email;
-    } catch (e) {
-      console.error(e);
-      alert('Errore durante la registrazione. Riprova.');
-    }
-  }
-
-  function handleLogin(event) {
-    event.preventDefault();
-    const email = event.target.email.value.trim().toLowerCase();
-    if (!registeredUsers[email]) {
-      alert('Email non trovata. Effettua prima la registrazione.');
-      switchToRegistration();
-      return;
-    }
-    currentLoginEmail = email;
-    generatedOTP = '123456'; // demo
-    showOTPForm(email);
-  }
-
-  function handleOTPVerification(event) {
-    event.preventDefault();
-    const enteredOTP = event.target.otp.value.trim();
-    if (enteredOTP === generatedOTP) {
-      currentUser = registeredUsers[currentLoginEmail];
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      showMainApp();
-    } else {
-      alert('Codice di verifica non valido.');
-      document.getElementById('otp-code').value = '';
-      document.getElementById('otp-code').focus();
-    }
-  }
-
-  function resendOTP() {
-    generatedOTP = '123456';
-    alert('Nuovo codice inviato a ' + currentLoginEmail);
-    const input = document.getElementById('otp-code');
-    if (input) { input.value=''; input.focus(); }
-  }
-
-  function switchToLogin() {
-    document.getElementById('registration-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-    document.getElementById('otp-form').classList.add('hidden');
-  }
-  function switchToRegistration() {
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('registration-form').classList.remove('hidden');
-    document.getElementById('otp-form').classList.add('hidden');
-  }
-  function showOTPForm(email) {
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('otp-form').classList.remove('hidden');
-    document.getElementById('otp-email').textContent = email;
-    document.getElementById('otp-code').focus();
-  }
-  function backToLogin() {
-    document.getElementById('otp-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-    currentLoginEmail = '';
-    generatedOTP = '';
-  }
-
-  function initAuth() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) { currentUser = JSON.parse(savedUser); showMainApp(); return; }
-    const hasRegisteredUsers = Object.keys(registeredUsers).length > 0;
-    if (hasRegisteredUsers) { switchToLogin(); } else { switchToRegistration(); }
-  }
-
-  function showMainApp() {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
-    document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
-    closeAllModals();
-    cleanInterface();
-    updateDashboard();
-    generateCalendar();
-    updateAgenda();
-    updateAbsencesSummary();
-    initChart();
-  }
-
-  function logout() {
-    localStorage.removeItem('currentUser');
-    location.reload();
-  }
-
-
-  // ====== UI Helpers ======
-  function showTab(tabName, ev) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-    document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('border-blue-500','text-blue-600'); btn.classList.add('border-transparent','text-gray-600'); btn.setAttribute('aria-selected','false'); });
-    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
-    if (ev && ev.target) { ev.target.classList.add('border-blue-500','text-blue-600'); ev.target.classList.remove('border-transparent','text-gray-600'); ev.target.setAttribute('aria-selected','true'); }
-  }
-  function showProfile(){ document.getElementById('profile-forza').value=getForceLabel(currentUser.forza); document.getElementById('profile-grado').value=currentUser.grado; document.getElementById('profile-irpef').value=currentUser.irpef||23; document.getElementById('profile-turnazione').value=currentUser.turnazione||'quinta'; document.getElementById('profile-modal').classList.remove('hidden'); }
-  function addShift(){ document.getElementById('edit-shift-id').value=''; document.getElementById('shift-modal-title').textContent='Aggiungi Turno'; document.getElementById('shift-date').value=new Date().toISOString().split('T')[0]; document.getElementById('shift-type').value=''; document.getElementById('shift-notes').value=''; document.getElementById('shift-modal').classList.remove('hidden'); }
-  function addAbsence(){ document.getElementById('edit-absence-id').value=''; document.getElementById('absence-modal-title').textContent='Aggiungi Assenza'; const d=new Date().toISOString().split('T')[0]; document.getElementById('absence-start').value=d; document.getElementById('absence-end').value=d; document.getElementById('absence-type').value=''; document.getElementById('absence-notes').value=''; document.getElementById('absence-modal').classList.remove('hidden'); }
-  function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
-
-  function showOfflineNotification(message){
-    const n = document.createElement('div'); n.className='fixed top-16 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'; n.innerHTML = `<i class="fas fa-info-circle mr-2"></i>${message}`; document.body.appendChild(n); setTimeout(()=>n.remove(),3000);
-  }
-
-  // ====== Unicità evento per giorno ======
-  function dayHasAnyEvent(dateStr){
-    const hasShift = shifts.some(s => s.date === dateStr);
-    const hasAbs = absences.some(a => isDateInRange(dateStr, a.startDate, a.endDate));
-    return hasShift || hasAbs;
-  }
-  function checkAbsenceRangeFree(startStr, endStr, editingId=null){
-    const days = enumerateDates(startStr, endStr);
-    for (const d of days){
-      if (shifts.some(s => s.date === d)) return false;
-      if (absences.some(a => a.id !== editingId && isDateInRange(d, a.startDate, a.endDate))) return false;
-    }
-    return true;
-  }
-  function isDateInRange(dateStr, startStr, endStr){
-    const d = new Date(dateStr); const s = new Date(startStr); const e = new Date(endStr);
-    d.setHours(0,0,0,0); s.setHours(0,0,0,0); e.setHours(0,0,0,0);
-    return d >= s && d <= e;
-  }
-  function enumerateDates(startStr, endStr){
-    const res=[]; const s=new Date(startStr); const e=new Date(endStr);
-    const d=new Date(s);
-    while(d <= e){ res.push(formatDate(d)); d.setDate(d.getDate()+1); }
-    return res;
-  }
-
-  // ====== Save / Update / Delete ======
-  function saveShift(event){
-    event.preventDefault();
-    const idEditing = document.getElementById('edit-shift-id').value || null;
-    const dateStr = document.getElementById('shift-date').value;
-    const type = document.getElementById('shift-type').value;
-    const notes = document.getElementById('shift-notes').value;
-
-    const conflict = absences.some(a => isDateInRange(dateStr, a.startDate, a.endDate)) ||
-                     shifts.some(s => s.date === dateStr && (!idEditing || s.id != idEditing));
-    if (conflict){ alert('Esiste già un evento (turno o assenza) in questa data. Modifica o cancella quello esistente.'); return; }
-
-    if (idEditing){
-      const idx = shifts.findIndex(s => s.id == idEditing);
-      if (idx > -1){ shifts[idx] = { ...shifts[idx], date: dateStr, type, notes, synced: isOnline }; }
-    } else {
-      shifts.push({ id: Date.now(), date: dateStr, type, notes, synced: isOnline });
-    }
-    localStorage.setItem('shifts', JSON.stringify(shifts));
-    closeModal('shift-modal');
-    updateDashboard(); generateCalendar(); updateAgenda();
-  }
-
-  function deleteShiftById(id){
-    shifts = shifts.filter(s => s.id !== id);
-    localStorage.setItem('shifts', JSON.stringify(shifts));
-    updateDashboard(); generateCalendar(); updateAgenda();
-  }
-
-  function saveAllowance(event){
-    event.preventDefault();
-    const allowance = {
-      id: Date.now(),
-      date: document.getElementById('allowance-date').value,
-      type: document.getElementById('allowance-type').value,
-      amount: parseFloat(document.getElementById('allowance-amount').value),
-      notes: document.getElementById('allowance-notes').value,
-      synced: isOnline
-    };
-    allowances.push(allowance);
-    localStorage.setItem('allowances', JSON.stringify(allowances));
-    closeModal('allowance-modal'); updateDashboard(); updateChart();
-  }
-
-  function saveAbsence(event){
-    event.preventDefault();
-    const idEditing = document.getElementById('edit-absence-id').value || null;
-    const startStr = document.getElementById('absence-start').value;
-    const endStr = document.getElementById('absence-end').value;
-    const type = document.getElementById('absence-type').value;
-    const notes = document.getElementById('absence-notes').value;
-
-    if (!checkAbsenceRangeFree(startStr, endStr, idEditing)){
-      alert('Intervallo assenza in conflitto con altri turni/assenze.'); return;
-    }
-
-    if (idEditing){
-      const idx = absences.findIndex(a => a.id == idEditing);
-      if (idx > -1){ absences[idx] = { ...absences[idx], startDate: startStr, endDate: endStr, type, notes, synced: isOnline }; }
-    } else {
-      absences.push({ id: Date.now(), startDate: startStr, endDate: endStr, type, notes, synced: isOnline });
-    }
-    localStorage.setItem('absences', JSON.stringify(absences));
-    closeModal('absence-modal'); updateAbsencesSummary(); generateCalendar(); updateAgenda();
-  }
-
-  function deleteAbsenceById(id){
-    absences = absences.filter(a => a.id !== id);
-    localStorage.setItem('absences', JSON.stringify(absences));
-    updateAbsencesSummary(); generateCalendar(); updateAgenda();
-  }
-
-  function updateProfile(event){
-    event.preventDefault();
-    currentUser.grado = document.getElementById('profile-grado').value;
-    currentUser.irpef = parseFloat(document.getElementById('profile-irpef').value);
-    currentUser.turnazione = document.getElementById('profile-turnazione').value;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    document.getElementById('user-info').textContent = `${currentUser.nome} ${currentUser.cognome} - ${currentUser.grado}`;
-    closeModal('profile-modal');
-  }
-
-  // ====== Dashboard ======
-  function updateDashboard(){
-    const now = new Date(); const m = now.getMonth(); const y= now.getFullYear();
-    const monthlyTotal = allowances.filter(a=>{const d=new Date(a.date); return d.getMonth()===m && d.getFullYear()===y;}).reduce((s,a)=>s+a.amount,0);
-    document.getElementById('monthly-total').textContent = `€${monthlyTotal.toFixed(2)}`;
-    const overtimeHours = allowances.filter(a=>{const d=new Date(a.date); return (a.type==='straordinario-emergente'||a.type==='straordinario-programmato') && d.getMonth()===m && d.getFullYear()===y;}).length;
-    document.getElementById('overtime-hours').textContent = overtimeHours;
-    const leaveDays = absences.filter(a=>a.type.includes('congedo')).reduce((sum,a)=>{const s=new Date(a.startDate), e=new Date(a.endDate); return sum + (Math.ceil((e-s)/(1000*60*60*24))+1);},0);
-    document.getElementById('leave-days').textContent = leaveDays;
-    const shiftsCount = shifts.filter(s=>{const d=new Date(s.date); return d.getMonth()===m && d.getFullYear()===y;}).length;
-    document.getElementById('shifts-count').textContent = shiftsCount;
-  }
-
-  // ====== Calendar ======
-  function generateCalendar(){
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    document.getElementById('calendar-title').textContent = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(currentDate);
-
-    const firstDay = new Date(year, month, 1);
-    const startDate = new Date(firstDay);
-    const day = firstDay.getDay(); // 0=Sun
-    startDate.setDate(startDate.getDate() - day);
-
-    const grid = document.getElementById('calendar-grid');
-    grid.innerHTML = '';
-    const headers = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
-    headers.forEach(h=>{ const hd=document.createElement('div'); hd.className='p-2 text-center font-semibold text-gray-700 bg-gray-100'; hd.textContent=h; grid.appendChild(hd); });
-
-    for(let i=0;i<42;i++){
-      const curr = new Date(startDate); curr.setDate(startDate.getDate()+i);
-      const currStr = formatDate(curr);
-      const div = document.createElement('div'); div.className='calendar-day p-2 text-sm'; div.setAttribute('data-date', currStr);
-      if (curr.getMonth()!==month) div.classList.add('text-gray-400');
-      if (curr.toDateString()===new Date().toDateString()) div.classList.add('today');
-      const num=document.createElement('div'); num.className='font-semibold mb-1'; num.textContent=curr.getDate(); div.appendChild(num);
-
-      const dayShift = shifts.find(s=> s.date === currStr);
-      if (dayShift){
-        const sdiv=document.createElement('div');
-        sdiv.className=`shift-${dayShift.type} text-xs p-1 rounded mb-1`;
-        sdiv.textContent = dayShift.type.charAt(0).toUpperCase()+dayShift.type.slice(1);
-        div.appendChild(sdiv);
-      }
-
-      const dayAbs = absences.find(a => isDateInRange(currStr, a.startDate, a.endDate));
-      if (dayAbs){
-        const adiv=document.createElement('div');
-        adiv.className = `absence-badge absence-${dayAbs.type.replace(/_/g,'-')}`;
-        adiv.textContent = getAbsenceTypeLabel(dayAbs.type);
-        div.appendChild(adiv);
-      }
-
-      div.addEventListener('click', () => openDayActions(currStr));
-      grid.appendChild(div);
-    }
-  }
-
-  function previousMonth(){ currentDate.setMonth(currentDate.getMonth()-1); generateCalendar(); }
-  function nextMonth(){ currentDate.setMonth(currentDate.getMonth()+1); generateCalendar(); }
-
-  function openDayActions(dateStr){
-    const container = document.getElementById('day-actions-content');
-    const title = document.getElementById('day-actions-title');
-    title.textContent = `Azioni per ${new Intl.DateTimeFormat('it-IT',{ day:'numeric', month:'long', year:'numeric'}).format(new Date(dateStr))}`;
-    container.innerHTML='';
-
-    const s = shifts.find(x => x.date === dateStr);
-    const a = absences.find(x => isDateInRange(dateStr, x.startDate, x.endDate));
-
-    if (!s && !a){
-      container.innerHTML = `
-        <p class="text-gray-600">Nessun evento in questa data.</p>
-        <div class="flex gap-2">
-          <button class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700" onclick="prefillShift('${dateStr}')"><i class="fas fa-plus mr-1"></i>Aggiungi Turno</button>
-          <button class="bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700" onclick="prefillAbsence('${dateStr}')"><i class="fas fa-calendar-times mr-1"></i>Aggiungi Assenza</button>
-        </div>`;
-    } else if (s){
-      container.innerHTML = `
-        <div class="space-y-2">
-          <p><strong>Turno:</strong> ${s.type}</p>
-          ${s.notes ? `<p class="text-sm text-gray-600">${s.notes}</p>` : ''}
-          <div class="flex gap-2">
-            <button class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700" onclick="editShift(${s.id})"><i class="fas fa-edit mr-1"></i>Modifica</button>
-            <button class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700" onclick="confirmDeleteShift(${s.id})"><i class="fas fa-trash mr-1"></i>Elimina</button>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Data Inizio</label>
+            <input type="date" class="form-control" id="ass-start" required>
           </div>
-        </div>`;
-    } else if (a){
-      container.innerHTML = `
-        <div class="space-y-2">
-          <p><strong>Assenza:</strong> ${getAbsenceTypeLabel(a.type)}</p>
-          <p class="text-sm text-gray-600">${formatDateLong(new Date(a.startDate))} → ${formatDateLong(new Date(a.endDate))}</p>
-          ${a.notes ? `<p class="text-sm text-gray-600">${a.notes}</p>` : ''}
-          <div class="flex gap-2">
-            <button class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700" onclick="editAbsence(${a.id})"><i class="fas fa-edit mr-1"></i>Modifica</button>
-            <button class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700" onclick="confirmDeleteAbsence(${a.id})"><i class="fas fa-trash mr-1"></i>Elimina</button>
+          <div class="mb-3">
+            <label class="form-label">Data Fine</label>
+            <input type="date" class="form-control" id="ass-end" required>
           </div>
-        </div>`;
-    }
-    document.getElementById('day-actions-modal').classList.remove('hidden');
-  }
+          <div class="mb-3">
+            <label class="form-label">Tipo Assenza</label>
+            <select class="form-select" id="ass-tipo" required>
+              <option value="">Seleziona...</option>
+              <option>Congedo Ordinario</option>
+              <option>Congedo Straordinario per Malattia</option>
+              <option>Congedo Straordinario per Esami</option>
+              <option>Congedo Straordinario per Gravi Motivi Familiari</option>
+              <option>Congedo Straordinario per Trasferimento</option>
+              <option>Riposo Legge</option>
+              <option>Riposo Settimanale</option>
+              <option>Riposo Festivo</option>
+              <option>Riposo Compensativo</option>
+              <option>Aspettativa</option>
+              <option>Legge 104</option>
+              <option>Donazione Sangue</option>
+              <option>Ore di Studio</option>
+              <option>Permesso Breve</option>
+              <option>Permesso Sindacale</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Note</label>
+            <textarea class="form-control" id="ass-note" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Annulla</button>
+          <button class="btn btn-primary" type="submit">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-  function prefillShift(dateStr){ addShift(); document.getElementById('shift-date').value = dateStr; }
-  function prefillAbsence(dateStr){ addAbsence(); document.getElementById('absence-start').value = dateStr; document.getElementById('absence-end').value = dateStr; }
-  function editShift(id){
-    const s = shifts.find(x => x.id === id); if (!s) return;
-    document.getElementById('edit-shift-id').value = s.id;
-    document.getElementById('shift-modal-title').textContent = 'Modifica Turno';
-    document.getElementById('shift-date').value = s.date;
-    document.getElementById('shift-type').value = s.type;
-    document.getElementById('shift-notes').value = s.notes || '';
-    document.getElementById('shift-modal').classList.remove('hidden');
-  }
-  function editAbsence(id){
-    const a = absences.find(x => x.id === id); if (!a) return;
-    document.getElementById('edit-absence-id').value = a.id;
-    document.getElementById('absence-modal-title').textContent = 'Modifica Assenza';
-    document.getElementById('absence-start').value = a.startDate;
-    document.getElementById('absence-end').value = a.endDate;
-    document.getElementById('absence-type').value = a.type;
-    document.getElementById('absence-notes').value = a.notes || '';
-    document.getElementById('absence-modal').classList.remove('hidden');
-  }
-  function confirmDeleteShift(id){
-    if (confirm('Eliminare questo turno?')){ deleteShiftById(id); closeModal('day-actions-modal'); }
-  }
-  function confirmDeleteAbsence(id){
-    if (confirm('Eliminare questa assenza?')){ deleteAbsenceById(id); closeModal('day-actions-modal'); }
-  }
-
-  // ====== Agenda (turni + assenze) ======
-  function updateAgenda(){
-    const list = document.getElementById('agenda-list'); list.innerHTML='';
-    const today = new Date(); today.setHours(0,0,0,0);
-    const monthAhead = new Date(today); monthAhead.setDate(today.getDate()+30);
-
-    const items = [];
-
-    shifts.forEach(s => {
-      const d = new Date(s.date);
-      if (d >= today && d <= monthAhead){
-        items.push({
-          sortDate: d, type: 'shift',
-          title: `Turno ${s.type}`, date: d, id: s.id, notes: s.notes || '',
-          allowancesCount: allowances.filter(a => a.date === s.date).length,
-          allowancesTotal: allowances.filter(a => a.date === s.date).reduce((sum,a)=>sum+a.amount,0)
-        });
-      }
-    });
-
-    absences.forEach(a => {
-      const s = new Date(a.startDate); const e = new Date(a.endDate);
-      if (e >= today && s <= monthAhead){
-        items.push({
-          sortDate: s, type: 'absence',
-          title: getAbsenceTypeLabel(a.type), date: s, id: a.id, notes: a.notes || '', endDate: e
-        });
-      }
-    });
-
-    items.sort((x,y)=> x.sortDate - y.sortDate);
-
-    if (items.length===0){ list.innerHTML='<p class="text-center text-gray-500 py-8">Nessun elemento in agenda per i prossimi 30 giorni.</p>'; return; }
-
-    items.forEach(it => {
-      const div = document.createElement('div'); div.className='border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow';
-      if (it.type==='shift'){
-        div.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <h4 class="font-semibold text-lg">${formatDateLong(it.date)}</h4>
-              <p class="text-gray-700">${it.title}</p>
-              ${it.notes?`<p class="text-sm text-gray-500 mt-1">${it.notes}</p>`:''}
-            </div>
-            <div class="text-right">
-              ${it.allowancesTotal>0?`<p class="text-green-600 font-semibold">€${it.allowancesTotal.toFixed(2)}</p>`:''}
-              <p class="text-xs text-gray-400">${it.allowancesCount} indennità</p>
-              <div class="mt-2 flex gap-2 justify-end">
-                <button class="text-blue-600 text-sm underline" onclick="editShift(${it.id})">Modifica</button>
-                <button class="text-red-600 text-sm underline" onclick="confirmDeleteShift(${it.id})">Elimina</button>
+  <!-- OVERLAY LOGIN (OTP DEMO) -->
+  <div id="auth-overlay">
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h3 class="mb-3">Accedi</h3>
+              <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" id="auth-email" class="form-control" placeholder="nome@dominio.it">
               </div>
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" id="btn-send-otp">Invia Codice di Verifica</button>
+              </div>
+              <hr>
+              <div class="mb-2 small text-muted">Demo: Usa il codice <strong>123456</strong> per accedere</div>
+              <div class="mb-3">
+                <label class="form-label">Codice OTP</label>
+                <input type="text" id="auth-otp" class="form-control" inputmode="numeric" pattern="[0-9]*" placeholder="Inserisci 123456">
+              </div>
+              <div class="d-grid gap-2">
+                <button class="btn btn-success" id="btn-verify-otp">Verifica e Accedi</button>
+                <button class="btn btn-outline-secondary" id="btn-otp-resend">Invia nuovamente</button>
+              </div>
+              <div id="auth-msg" class="small text-muted mt-2" aria-live="polite"></div>
             </div>
-          </div>`;
+          </div>
+          <p class="text-center text-muted mt-3">Modalità offline attiva - i dati verranno sincronizzati quando tornerai online</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIBRERIE -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <script>
+  /*********************
+   * UTIL & STORAGE
+   *********************/
+  const LS_KEYS = {
+    CAL: 'turni_calendario',
+    IND: 'indennita_mensili',
+    AUTH: 'auth_demo'
+  };
+
+  const getJSON = (k, def=[]) => {
+    try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(def)); }
+    catch { return def; }
+  };
+  const setJSON = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+  const fmtISO = d => d.toISOString().slice(0,10);
+  const parseISO = s => new Date(s + 'T00:00:00');
+  function* daysRange(d1, d2) {
+    const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    while (cur <= end) { yield new Date(cur); cur.setDate(cur.getDate() + 1); }
+  }
+
+  /*********************
+   * LOGIN DEMO OTP
+   *********************/
+  (function authDemo(){
+    const overlay = document.getElementById('auth-overlay');
+    const btnSend = document.getElementById('btn-send-otp');
+    const btnVerify = document.getElementById('btn-verify-otp');
+    const btnResend = document.getElementById('btn-otp-resend');
+    const inputOTP = document.getElementById('auth-otp');
+    const msg = document.getElementById('auth-msg');
+    const DEMO_OTP = '123456';
+
+    function hideOverlay(){ overlay.style.display = 'none'; }
+    function showOverlay(){ overlay.style.display = ''; }
+
+    // autologin se già autenticato
+    if (localStorage.getItem(LS_KEYS.AUTH) === '1') hideOverlay();
+
+    btnSend?.addEventListener('click', (e)=>{ e.preventDefault(); msg.textContent = 'Codice inviato (demo). Usa 123456.'; });
+    btnResend?.addEventListener('click', (e)=>{ e.preventDefault(); msg.textContent = 'Nuovo codice inviato (demo): 123456.'; });
+    btnVerify?.addEventListener('click', (e)=>{
+      e.preventDefault();
+      if ((inputOTP.value || '').trim() === DEMO_OTP) {
+        localStorage.setItem(LS_KEYS.AUTH, '1');
+        hideOverlay();
+        window.dispatchEvent(new Event('auth:login'));
       } else {
-        div.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <h4 class="font-semibold text-lg">${formatDateLong(it.date)} → ${formatDateLong(it.endDate)}</h4>
-              <p class="text-gray-700">${it.title}</p>
-              ${it.notes?`<p class="text-sm text-gray-500 mt-1">${it.notes}</p>`:''}
-            </div>
-            <div class="text-right">
-              <div class="mt-2 flex gap-2 justify-end">
-                <button class="text-blue-600 text-sm underline" onclick="editAbsence(${it.id})">Modifica</button>
-                <button class="text-red-600 text-sm underline" onclick="confirmDeleteAbsence(${it.id})">Elimina</button>
-              </div>
-            </div>
-          </div>`;
+        msg.textContent = 'Codice errato. Inserisci 123456 per accedere (demo).';
+        inputOTP.focus();
       }
-      list.appendChild(div);
     });
-  }
 
-  // ====== Absences Summary ======
-  function updateAbsencesSummary(){
-    const y = new Date().getFullYear();
-    const ord = absences.filter(a=> a.type==='congedo-ordinario' && new Date(a.startDate).getFullYear()===y).length;
-    const stra = absences.filter(a=> a.type.includes('congedo-straordinario') && new Date(a.startDate).getFullYear()===y).length;
-    const brevi = absences.filter(a=> a.type==='permesso-breve' && new Date(a.startDate).getFullYear()===y).length;
-    const legge = absences.filter(a=> a.type==='riposo-legge' && new Date(a.startDate).getFullYear()===y).length;
-    document.getElementById('congedi-ordinari').textContent = ord;
-    document.getElementById('congedi-straordinari').textContent = stra;
-    document.getElementById('permessi-brevi').textContent = brevi;
-    document.getElementById('riposi-legge').textContent = legge;
-
-    const list = document.getElementById('absences-list'); list.innerHTML='';
-    absences.sort((a,b)=> new Date(b.startDate)-new Date(a.startDate)).slice(0,10).forEach(abs=>{
-      const s=new Date(abs.startDate), e=new Date(abs.endDate);
-      const duration = Math.ceil((e-s)/(1000*60*60*24))+1;
-      const div=document.createElement('div'); div.className='border border-gray-200 rounded-lg p-4';
-      div.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div>
-            <h4 class="font-semibold">${getAbsenceTypeLabel(abs.type)}</h4>
-            <p class="text-gray-600">${formatDateLong(s)} - ${formatDateLong(e)}</p>
-            ${abs.notes?`<p class="text-sm text-gray-500 mt-1">${abs.notes}</p>`:''}
-          </div>
-          <div class="text-right">
-            <p class="font-semibold">${duration} giorn${duration===1?'o':'i'}</p>
-            <div class="mt-2 flex gap-2 justify-end">
-              <button class="text-blue-600 text-sm underline" onclick="editAbsence(${abs.id})">Modifica</button>
-              <button class="text-red-600 text-sm underline" onclick="confirmDeleteAbsence(${abs.id})">Elimina</button>
-            </div>
-          </div>
-        </div>`;
-      list.appendChild(div);
+    document.getElementById('btn-logout')?.addEventListener('click', ()=>{
+      localStorage.removeItem(LS_KEYS.AUTH);
+      showOverlay();
     });
-  }
+  })();
 
-  // ====== Search ======
-  function performSearch(){
-    const type = document.getElementById('search-type').value;
-    const fromDate = document.getElementById('search-from').value;
-    const toDate = document.getElementById('search-to').value;
-    const results = [];
-    const from = fromDate ? new Date(fromDate) : new Date('1900-01-01');
-    const to = toDate ? new Date(toDate) : new Date('2100-12-31');
-
-    if (!type || type==='shift'){
-      shifts.filter(s=> { const d=new Date(s.date); return d>=from && d<=to; })
-            .forEach(s=> results.push({ type:'shift', data:s, date:s.date }));
-    }
-    if (!type || type==='absence'){
-      absences.filter(a=> { const d=new Date(a.startDate); return d>=from && d<=to; })
-              .forEach(a=> results.push({ type:'absence', data:a, date:a.startDate }));
-    }
-    if (!type || type==='allowance'){
-      allowances.filter(a=> { const d=new Date(a.date); return d>=from && d<=to; })
-                .forEach(a=> results.push({ type:'allowance', data:a, date:a.date }));
-    }
-
-    results.sort((a,b)=> new Date(b.date)-new Date(a.date));
-    const container = document.getElementById('search-results'); container.innerHTML='';
-    if (results.length===0){ container.innerHTML='<p class="text-center text-gray-500 py-8">Nessun risultato trovato.</p>'; return; }
-
-    results.forEach(r=>{
-      const d=new Date(r.date);
-      const card=document.createElement('div'); card.className='border border-gray-200 rounded-lg p-4';
-      let content='';
-      if (r.type==='shift'){
-        content = `
-          <div class="flex items-center mb-2"><i class="fas fa-clock text-blue-500 mr-2"></i><span class="font-semibold">Turno</span></div>
-          <p class="text-gray-600">${formatDateLong(d)} - ${r.data.type}</p>
-          ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
-          <div class="mt-2">
-            <button class="text-blue-600 text-sm underline" onclick="editShift(${r.data.id})">Modifica</button>
-            <button class="text-red-600 text-sm underline" onclick="confirmDeleteShift(${r.data.id})">Elimina</button>
-          </div>
-        `;
-      } else if (r.type==='absence'){
-        const e=new Date(r.data.endDate);
-        const dur = Math.ceil((e-d)/(1000*60*60*24))+1;
-        content = `
-          <div class="flex items-center mb-2"><i class="fas fa-calendar-times text-orange-500 mr-2"></i><span class="font-semibold">Assenza</span></div>
-          <p class="text-gray-600">${getAbsenceTypeLabel(r.data.type)}</p>
-          <p class="text-gray-600">${formatDateLong(d)} - ${formatDateLong(e)} (${dur} giorni)</p>
-          ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
-          <div class="mt-2">
-            <button class="text-blue-600 text-sm underline" onclick="editAbsence(${r.data.id})">Modifica</button>
-            <button class="text-red-600 text-sm underline" onclick="confirmDeleteAbsence(${r.data.id})">Elimina</button>
-          </div>
-        `;
-      } else if (r.type==='allowance'){
-        content = `
-          <div class="flex items-center mb-2"><i class="fas fa-euro-sign text-green-500 mr-2"></i><span class="font-semibold">Indennità</span></div>
-          <p class="text-gray-600">${getAllowanceTypeLabel(r.data.type)} - €${r.data.amount.toFixed(2)}</p>
-          <p class="text-gray-600">${formatDateLong(d)}</p>
-          ${r.data.notes?`<p class="text-sm text-gray-500 mt-1">${r.data.notes}</p>`:''}
-        `;
+  /*********************
+   * NAV TABS
+   *********************/
+  (function tabs(){
+    const pages = document.querySelectorAll('.page');
+    document.getElementById('mainTabs')?.addEventListener('click', (e)=>{
+      const a = e.target.closest('a[data-target]');
+      if (!a) return;
+      e.preventDefault();
+      document.querySelectorAll('#mainTabs .nav-link').forEach(el=>el.classList.remove('active'));
+      a.classList.add('active');
+      pages.forEach(p=>p.classList.remove('active'));
+      document.getElementById(a.dataset.target)?.classList.add('active');
+      if (a.dataset.target === 'page-calendario' && window._calendar) {
+        // fix render quando si cambia tab
+        setTimeout(()=>window._calendar.updateSize(), 50);
       }
-      card.innerHTML = content;
-      container.appendChild(card);
     });
-  }
+  })();
 
-  // ====== Chart ======
-  function initChart(){
-    const ctx = document.getElementById('monthlyChart').getContext('2d');
-    const data=[]; const labels=[];
-    for (let i=11;i>=0;i--){
-      const date=new Date(); date.setMonth(date.getMonth()-i);
-      const total = allowances.filter(a=> { const d=new Date(a.date); return d.getMonth()===date.getMonth() && d.getFullYear()===date.getFullYear(); })
-                              .reduce((s,a)=>s+a.amount,0);
-      data.push(total);
-      labels.push(new Intl.DateTimeFormat('it-IT',{month:'short',year:'2-digit'}).format(date));
-    }
-    monthlyChart = new Chart(ctx, {
+  /*********************
+   * CHART: Indennità Mensili (sempre visibile)
+   *********************/
+  (function chartIndennita(){
+    const el = document.getElementById('chart-indennita');
+    if (!el || typeof Chart === 'undefined') return;
+
+    const stored = getJSON(LS_KEYS.IND, []);
+    const labels = stored.length ? stored.map(x=>x.label) : ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const values = stored.length ? stored.map(x=>x.value) : Array(12).fill(0);
+
+    const chart = new Chart(el, {
       type: 'line',
-      data: { labels, datasets: [{ label: 'Indennità Mensili (€)', data, borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.1, fill: true }]},
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: (v)=> '€'+Number(v).toFixed(2) } } }, plugins: { legend: { display:true, position:'top' } } }
+      data: { labels, datasets: [{ label: 'Indennità', data: values, tension: 0.3, fill: false }] },
+      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
     });
-  }
-  function updateChart(){
-    if (!monthlyChart) return;
-    const newData=[];
-    for (let i=11;i>=0;i--){
-      const date=new Date(); date.setMonth(date.getMonth()-i);
-      const total = allowances.filter(a=> { const d=new Date(a.date); return d.getMonth()===date.getMonth() && d.getFullYear()===date.getFullYear(); })
-                              .reduce((s,a)=>s+a.amount,0);
-      newData.push(total);
-    }
-    monthlyChart.data.datasets[0].data = newData; monthlyChart.update();
-  }
 
-  // ====== Backup ======
-  function backupData(){
-    const backup = { user: currentUser, shifts, allowances, absences, timestamp:new Date().toISOString(), version:'5.0' };
-    const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `turniservice_backup_${new Date().toISOString().split('T')[0]}.json`; link.click();
-  }
-
-  // ====== Utils ======
-  function formatDate(date){ return date.toISOString().split('T')[0]; }
-  function formatDateLong(date){ return new Intl.DateTimeFormat('it-IT',{ weekday:'long', year:'numeric', month:'long', day:'numeric'}).format(date); }
-  function getForceLabel(code){ const map={'carabinieri':'Carabinieri','guardia-finanza':'Guardia di Finanza','polizia-stato':'Polizia di Stato','polizia-penitenziaria':'Polizia Penitenziaria'}; return map[code]||code; }
-  function getAbsenceTypeLabel(type){
-    const types={
-      'congedo-ordinario':'Congedo Ordinario',
-      'congedo-straordinario-malattia':'Congedo Straordinario per Malattia',
-      'congedo-straordinario-esami':'Congedo Straordinario per Esami',
-      'congedo-straordinario-familiari':'Congedo Straordinario per Gravi Motivi Familiari',
-      'congedo-straordinario-trasferimento':'Congedo Straordinario per Trasferimento',
-      'riposo-legge':'Riposo Legge',
-      'riposo-settimanale':'Riposo Settimanale',
-      'riposo-festivo':'Riposo Festivo',
-      'riposo-compensativo':'Riposo Compensativo',
-      'aspettativa':'Aspettativa',
-      'legge-104':'Legge 104',
-      'donazione-sangue':'Donazione Sangue',
-      'ore-studio':'Ore di Studio',
-      'permesso-breve':'Permesso Breve',
-      'permesso-sindacale':'Permesso Sindacale'
+    window.updateIndennitaChart = function(newData){
+      setJSON(LS_KEYS.IND, newData);
+      chart.data.labels = newData.map(x=>x.label);
+      chart.data.datasets[0].data = newData.map(x=>x.value);
+      chart.update();
     };
-    return types[type]||type;
-  }
-  function getAllowanceTypeLabel(type){
-    const types={'ordine-pubblico':'Ordine Pubblico','servizio-esterno':'Servizio Esterno','cambio-turno':'Cambio Turno','missione':'Missione','reperibilita':'Reperibilità','rimborso-forfettario':'Rimborso Forfettario','buono-pasto':'Buono Pasto','straordinario-emergente':'Straordinario Emergente','straordinario-programmato':'Straordinario Programmato'};
-    return types[type]||type;
-  }
 
-  // ====== Init ======
-  document.addEventListener('DOMContentLoaded', function(){
-    updateConnectionStatus();
-    initEmailJS();
-    initAuth();
-  });
-  document.addEventListener('keydown', function(e){ if (e.key==='Escape') { document.getElementById('day-actions-modal').classList.add('hidden'); } });
-  if ('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('controllerchange', ()=> window.location.reload()); }
+    window.addEventListener('resize', ()=>chart.resize());
+    document.addEventListener('visibilitychange', ()=>!document.hidden && chart.resize());
+  })();
+
+  /*********************
+   * FULLCALENDAR: sempre visibile
+   *********************/
+  (function calendario(){
+    const el = document.getElementById('calendario-app');
+    if (!el || typeof FullCalendar === 'undefined') return;
+
+    const events = getJSON(LS_KEYS.CAL, []); // [] => griglia visibile comunque
+
+    const calendar = new FullCalendar.Calendar(el, {
+      initialView: 'dayGridMonth',
+      height: 'auto',
+      fixedWeekCount: false,
+      showNonCurrentDates: true,
+      dayMaxEvents: true,
+      events
+    });
+    calendar.render();
+    window._calendar = calendar;
+
+    window.refreshCalendarEvents = function(newEvents){
+      calendar.removeAllEvents();
+      calendar.addEventSource(newEvents);
+    };
+  })();
+
+  /*********************
+   * AGENDA: Generatore turnazione in quinta
+   *********************/
+  (function agenda(){
+    const SEQ = ['sera','pomeriggio','mattina','notte','riposo'];
+    const SHIFT_META = {
+      sera:       { title: 'Turno sera',       className: 'turno-sera' },
+      pomeriggio: { title: 'Turno pomeriggio', className: 'turno-pomeriggio' },
+      mattina:    { title: 'Turno mattina',    className: 'turno-mattina' },
+      notte:      { title: 'Turno notte',      className: 'turno-notte' },
+      riposo:     { title: 'Riposo',           className: 'turno-riposo' }
+    };
+
+    function generateRotation({ start, end, startShift }) {
+      const startIdx = SEQ.indexOf(startShift);
+      if (startIdx < 0) throw new Error('Turno iniziale non valido');
+
+      const events = [];
+      let i = 0;
+      for (const day of daysRange(start, end)) {
+        const tipo = SEQ[(startIdx + i) % SEQ.length];
+        const meta = SHIFT_META[tipo];
+        events.push({
+          id: `auto-${fmtISO(day)}-${tipo}`,
+          title: meta.title,
+          start: fmtISO(day),
+          allDay: true,
+          className: meta.className,
+          extendedProps: { tipo, origin: 'auto' }
+        });
+        i++;
+      }
+      return events;
+    }
+
+    function mergeEvents(existing, generated) {
+      // protegge quelli manuali (senza origin=auto)
+      const manual = existing.filter(e => !(e.extendedProps && e.extendedProps.origin === 'auto'));
+      const map = new Map(manual.map(e => [e.id || `${e.start}-${e.title}`, e]));
+      for (const ev of generated) {
+        map.set(ev.id || `${ev.start}-${ev.title}`, ev);
+      }
+      return Array.from(map.values());
+    }
+
+    // Hook UI
+    const $start = document.getElementById('r-start');
+    const $end   = document.getElementById('r-end');
+    const $sel   = document.getElementById('r-start-shift');
+    const $btn   = document.getElementById('r-genera');
+    const $out   = document.getElementById('r-esito');
+
+    $btn?.addEventListener('click', ()=>{
+      try{
+        const ds = $start.value, de = $end.value, shift = $sel.value;
+        if (!ds || !de || !shift) throw new Error('Compila data inizio, data fine e turno iniziale.');
+        const dStart = parseISO(ds), dEnd = parseISO(de);
+        if (dEnd < dStart) throw new Error('La data di fine deve essere successiva a quella di inizio.');
+        const gen = generateRotation({ start: dStart, end: dEnd, startShift: shift });
+
+        const existing = getJSON(LS_KEYS.CAL, []);
+        const merged = mergeEvents(existing, gen);
+        setJSON(LS_KEYS.CAL, merged);
+
+        if (typeof window.refreshCalendarEvents === 'function') window.refreshCalendarEvents(merged);
+        window.dispatchEvent(new CustomEvent('turni:generated', { detail: { count: gen.length } }));
+        if ($out) $out.textContent = `Generati ${gen.length} turni fino al ${de}.`;
+      } catch(err){
+        if ($out) $out.textContent = err.message || 'Errore durante la generazione.';
+        else alert(err.message || 'Errore durante la generazione.');
+      }
+    });
+
+    // Agenda list
+    function renderAgendaList(containerSelector) {
+      const el = document.querySelector(containerSelector);
+      if (!el) return;
+      const events = getJSON(LS_KEYS.CAL, [])
+        .filter(e => e.extendedProps?.tipo) // solo turni
+        .sort((a,b)=> (a.start < b.start ? -1 : 1));
+
+      el.innerHTML = '';
+      for (const ev of events) {
+        const d = new Date(ev.start);
+        const item = document.createElement('div');
+        item.className = 'border rounded p-3';
+        item.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold">${d.toLocaleDateString('it-IT', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })}</div>
+              <div class="text-muted small">${ev.title}</div>
+            </div>
+            <div class="d-flex gap-3">
+              <a href="#" class="link-primary" data-del="${ev.id}">Elimina</a>
+            </div>
+          </div>
+        `;
+        el.appendChild(item);
+      }
+
+      // delete handler
+      el.querySelectorAll('[data-del]')?.forEach(a=>{
+        a.addEventListener('click', (e)=>{
+          e.preventDefault();
+          const id = a.getAttribute('data-del');
+          let arr = getJSON(LS_KEYS.CAL, []);
+          arr = arr.filter(x => (x.id || `${x.start}-${x.title}`) !== id);
+          setJSON(LS_KEYS.CAL, arr);
+          if (typeof window.refreshCalendarEvents === 'function') window.refreshCalendarEvents(arr);
+          renderAgendaList(containerSelector);
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>renderAgendaList('#agenda-list'));
+    window.addEventListener('turni:generated', ()=>renderAgendaList('#agenda-list'));
+  })();
+
+  /*********************
+   * FORM: Aggiungi Turno / Indennità / Assenza (semplice)
+   *********************/
+  (function forms(){
+    // Turno
+    document.getElementById('form-add-turno')?.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const data = document.getElementById('turno-data').value;
+      const tipo = document.getElementById('turno-tipo').value;
+      if (!data || !tipo) return;
+      const titleMap = { sera:'Turno sera', pomeriggio:'Turno pomeriggio', mattina:'Turno mattina', notte:'Turno notte', riposo:'Riposo' };
+      const events = getJSON(LS_KEYS.CAL, []);
+      const id = `man-${data}-${tipo}-${Math.random().toString(36).slice(2,8)}`;
+      events.push({ id, title: titleMap[tipo] || tipo, start: data, allDay:true, extendedProps:{ tipo, origin:'manual' } });
+      setJSON(LS_KEYS.CAL, events);
+      if (typeof window.refreshCalendarEvents === 'function') window.refreshCalendarEvents(events);
+      document.querySelector('#modalAddTurno .btn-close').click();
+    });
+
+    // Indennità (aggiorna grafico con somma semplice per mese)
+    document.getElementById('form-add-indennita')?.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const data = document.getElementById('ind-data').value;
+      const importo = parseFloat(document.getElementById('ind-importo').value||'0');
+      if (!data || isNaN(importo)) return;
+
+      const d = new Date(data+'T00:00:00');
+      const month = d.toLocaleString('it-IT', { month:'short' });
+      const labelsDefault = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+
+      const arr = getJSON(LS_KEYS.IND, labelsDefault.map(l=>({label:l, value:0})));
+      const idx = arr.findIndex(x => x.label.toLowerCase().startsWith(month.slice(0,3).toLowerCase()));
+      if (idx >= 0) arr[idx].value += importo;
+      setJSON(LS_KEYS.IND, arr);
+      if (typeof window.updateIndennitaChart === 'function') window.updateIndennitaChart(arr);
+      document.querySelector('#modalAddIndennita .btn-close').click();
+    });
+
+    // Assenza (solo persist/placeholder)
+    document.getElementById('form-add-assenza')?.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      // Qui potresti salvare in uno storage dedicato e mostrare in calendario con badge
+      document.querySelector('#modalAddAssenza .btn-close').click();
+    });
+  })();
+
+  /*********************
+   * PWA: Service Worker (facoltativo)
+   *********************/
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
   </script>
 </body>
 </html>
