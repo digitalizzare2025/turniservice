@@ -8,15 +8,14 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="favicon.ico">
 
-  <!-- Bootstrap (solo per layout; non cambio palette) -->
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- FullCalendar -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-  <!-- (Opzionale) Icone -->
+  <!-- Icone -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
   <style>
-    /* Struttura base, nessuna modifica palette */
     body { background:#f4f6f8; }
     header.navbar { background:#223ea8; }
     header .navbar-brand, header .nav-link, header .navbar-text { color:#fff !important; }
@@ -25,16 +24,12 @@
     .card { border-radius: 12px; }
     .quick-action .btn { width:100%; height:64px; }
     #chart-indennita { min-height: 280px; display: block; }
-
-    /* Calendario sempre visibile: altezza auto responsiva */
     #calendario-app { min-height: 520px; }
 
     /* Overlay login (OTP demo) */
-    #auth-overlay {
-      position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto;
-    }
+    #auth-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto; }
 
-    /* Classi facoltative per i turni (non cambiano colori globali) */
+    /* Classi facoltative per i turni (non alterano palette esistente) */
     .turno-sera{}
     .turno-pomeriggio{}
     .turno-mattina{}
@@ -53,7 +48,7 @@
       <div class="ms-auto d-flex align-items-center gap-2">
         <span class="badge bg-success">Online</span>
         <a class="btn btn-light btn-sm" href="#" id="btn-profile"><i class="bi bi-person-circle me-1"></i>Profilo</a>
-        <button class="btn btn-danger btn-sm" id="btn-logout"><i class="bi bi-box-arrow-right"></i></button>
+        <button class="btn btn-danger btn-sm" id="btn-logout" title="Esci"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </div>
   </header>
@@ -495,7 +490,6 @@
       pages.forEach(p=>p.classList.remove('active'));
       document.getElementById(a.dataset.target)?.classList.add('active');
       if (a.dataset.target === 'page-calendario' && window._calendar) {
-        // fix render quando si cambia tab
         setTimeout(()=>window._calendar.updateSize(), 50);
       }
     });
@@ -711,10 +705,9 @@
       document.querySelector('#modalAddIndennita .btn-close').click();
     });
 
-    // Assenza (solo persist/placeholder)
+    // Assenza (solo persist/placeholder per estensioni future)
     document.getElementById('form-add-assenza')?.addEventListener('submit', (e)=>{
       e.preventDefault();
-      // Qui potresti salvare in uno storage dedicato e mostrare in calendario con badge
       document.querySelector('#modalAddAssenza .btn-close').click();
     });
   })();
