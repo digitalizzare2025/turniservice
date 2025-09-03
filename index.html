@@ -26,10 +26,10 @@
     #chart-indennita { min-height: 280px; display: block; }
     #calendario-app { min-height: 520px; }
 
-    /* Overlay login (OTP demo) */
+    /* Overlay login (Magic Link) */
     #auth-overlay { position: fixed; inset: 0; background: #ffffff; z-index: 9999; overflow: auto; }
 
-    /* Classi facoltative per i turni (non alterano palette esistente) */
+    /* Classi facoltative per i turni (non alterano la palette) */
     .turno-sera{}
     .turno-pomeriggio{}
     .turno-mattina{}
@@ -46,9 +46,10 @@
         <i class="bi bi-shield-lock"></i> <span>TurniService</span>
       </a>
       <div class="ms-auto d-flex align-items-center gap-2">
-        <span class="badge bg-success">Online</span>
-        <a class="btn btn-light btn-sm" href="#" id="btn-profile"><i class="bi bi-person-circle me-1"></i>Profilo</a>
-        <button class="btn btn-danger btn-sm" id="btn-logout" title="Esci"><i class="bi bi-box-arrow-right"></i></button>
+        <span id="badge-status" class="badge bg-secondary">Offline</span>
+        <span id="user-email" class="text-white-50 small"></span>
+        <button class="btn btn-light btn-sm d-none" id="btn-profile"><i class="bi bi-person-circle me-1"></i>Profilo</button>
+        <button class="btn btn-danger btn-sm d-none" id="btn-logout" title="Esci"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </div>
   </header>
@@ -375,7 +376,7 @@
     </div>
   </div>
 
-  <!-- OVERLAY LOGIN (OTP DEMO) -->
+  <!-- OVERLAY LOGIN (SUPABASE MAGIC LINK) -->
   <div id="auth-overlay">
     <div class="container py-5">
       <div class="row justify-content-center">
@@ -388,22 +389,16 @@
                 <input type="email" id="auth-email" class="form-control" placeholder="nome@dominio.it">
               </div>
               <div class="d-grid gap-2">
-                <button class="btn btn-primary" id="btn-send-otp">Invia Codice di Verifica</button>
+                <button class="btn btn-primary" id="btn-send-magic">Invia Link Magico</button>
               </div>
-              <hr>
-              <div class="mb-2 small text-muted">Demo: Usa il codice <strong>123456</strong> per accedere</div>
-              <div class="mb-3">
-                <label class="form-label">Codice OTP</label>
-                <input type="text" id="auth-otp" class="form-control" inputmode="numeric" pattern="[0-9]*" placeholder="Inserisci 123456">
-              </div>
-              <div class="d-grid gap-2">
-                <button class="btn btn-success" id="btn-verify-otp">Verifica e Accedi</button>
-                <button class="btn btn-outline-secondary" id="btn-otp-resend">Invia nuovamente</button>
-              </div>
-              <div id="auth-msg" class="small text-muted mt-2" aria-live="polite"></div>
+              <div id="auth-msg" class="small text-muted mt-3" aria-live="polite"></div>
+              <hr class="my-3">
+              <p class="small text-muted">
+                Dopo aver cliccato il link nell'email, verrai reindirizzato qui e l’accesso sarà automatico.
+              </p>
             </div>
           </div>
-          <p class="text-center text-muted mt-3">Modalità offline attiva - i dati verranno sincronizzati quando tornerai online</p>
+          <p class="text-center text-muted mt-3">PWA offline: i dati si sincronizzano quando torni online</p>
         </div>
       </div>
     </div>
@@ -413,15 +408,28 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 
   <script>
   /*********************
-   * UTIL & STORAGE
+   * CONFIG
    *********************/
+  // ⬇️ INCOLLA QUI i tuoi valori reali
+  const SUPABASE_URL = "https://rqmltortearagsshvokr.supabase.co";   
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbWx0b3J0ZWFyYWdzc2h2b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4ODE4ODQsImV4cCI6MjA3MjQ1Nzg4NH0.rFQLx7LDoEQ2hSNtvfDCb4m0rUMMzsSL72z-_RhYljU";                    
+
+  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
+
   const LS_KEYS = {
-    CAL: 'turni_calendario',
-    IND: 'indennita_mensili',
-    AUTH: 'auth_demo'
+    CAL: 'turni_calendario_cache',
+    IND: 'indennita_mensili_cache',
+    ABS: 'assenze_cache'
   };
 
   const getJSON = (k, def=[]) => {
@@ -438,43 +446,259 @@
     while (cur <= end) { yield new Date(cur); cur.setDate(cur.getDate() + 1); }
   }
 
+  const $ = sel => document.querySelector(sel);
+
   /*********************
-   * LOGIN DEMO OTP
+   * AUTH: Magic Link
    *********************/
-  (function authDemo(){
-    const overlay = document.getElementById('auth-overlay');
-    const btnSend = document.getElementById('btn-send-otp');
-    const btnVerify = document.getElementById('btn-verify-otp');
-    const btnResend = document.getElementById('btn-otp-resend');
-    const inputOTP = document.getElementById('auth-otp');
-    const msg = document.getElementById('auth-msg');
-    const DEMO_OTP = '123456';
+  async function checkSessionUI() {
+    const { data: { session } } = await supa.auth.getSession();
+    const overlay = $('#auth-overlay');
+    const badge = $('#badge-status');
+    const emailTxt = $('#user-email');
+    const btnLogout = $('#btn-logout');
 
-    function hideOverlay(){ overlay.style.display = 'none'; }
-    function showOverlay(){ overlay.style.display = ''; }
+    if (session && session.user) {
+      overlay.style.display = 'none';
+      badge.classList.remove('bg-secondary'); badge.classList.add('bg-success');
+      badge.textContent = 'Online';
+      emailTxt.textContent = session.user.email || '';
+      btnLogout.classList.remove('d-none');
+      $('#btn-profile')?.classList.remove('d-none');
+      // Carica dati utente
+      await loadAllDataAndRender();
+    } else {
+      overlay.style.display = '';
+      badge.classList.remove('bg-success'); badge.classList.add('bg-secondary');
+      badge.textContent = 'Offline';
+      emailTxt.textContent = '';
+      btnLogout.classList.add('d-none');
+      $('#btn-profile')?.classList.add('d-none');
+      // Reset UI minimo (manteniamo comunque calendario vuoto e grafico con placeholder)
+      renderCalendar([]);
+      renderAgendaList('#agenda-list', []);
+      renderIndennitaChartPlaceholder();
+    }
+  }
 
-    // autologin se già autenticato
-    if (localStorage.getItem(LS_KEYS.AUTH) === '1') hideOverlay();
-
-    btnSend?.addEventListener('click', (e)=>{ e.preventDefault(); msg.textContent = 'Codice inviato (demo). Usa 123456.'; });
-    btnResend?.addEventListener('click', (e)=>{ e.preventDefault(); msg.textContent = 'Nuovo codice inviato (demo): 123456.'; });
-    btnVerify?.addEventListener('click', (e)=>{
-      e.preventDefault();
-      if ((inputOTP.value || '').trim() === DEMO_OTP) {
-        localStorage.setItem(LS_KEYS.AUTH, '1');
-        hideOverlay();
-        window.dispatchEvent(new Event('auth:login'));
-      } else {
-        msg.textContent = 'Codice errato. Inserisci 123456 per accedere (demo).';
-        inputOTP.focus();
-      }
+  // Invio magic link
+  $('#btn-send-magic')?.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const email = $('#auth-email').value.trim();
+    const msg = $('#auth-msg');
+    if (!email) { msg.textContent = 'Inserisci una email valida.'; return; }
+    msg.textContent = 'Invio link magico...';
+    const { error } = await supa.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + window.location.pathname } // redirect a questa pagina
     });
+    if (error) { msg.textContent = 'Errore: ' + error.message; return; }
+    msg.textContent = 'Email inviata! Controlla la casella e clicca sul link per accedere.';
+  });
 
-    document.getElementById('btn-logout')?.addEventListener('click', ()=>{
-      localStorage.removeItem(LS_KEYS.AUTH);
-      showOverlay();
+  // Logout
+  $('#btn-logout')?.addEventListener('click', async ()=>{
+    await supa.auth.signOut();
+    await checkSessionUI();
+  });
+
+  // Reagisci ai cambi sessione (es. dopo redirect del magic link)
+  supa.auth.onAuthStateChange(async (_event, _session)=>{ await checkSessionUI(); });
+
+  /*********************
+   * DATA LAYER (Supabase + cache)
+   *********************/
+  async function getUserId() {
+    const { data: { user } } = await supa.auth.getUser();
+    return user?.id || null;
+  }
+
+  // SHIFTS
+  async function fetchShifts() {
+    const uid = await getUserId(); if (!uid) return [];
+    const { data, error } = await supa.from('shifts').select('*').eq('user_id', uid).order('date');
+    if (error) { console.warn('fetchShifts error', error); return getJSON(LS_KEYS.CAL, []); }
+    setJSON(LS_KEYS.CAL, data || []);
+    return data || [];
+  }
+
+  async function upsertShifts(rows) {
+    const uid = await getUserId(); if (!uid) return;
+    const payload = rows.map(r => ({ ...r, user_id: uid }));
+    const { error } = await supa.from('shifts').upsert(payload, { onConflict: 'user_id,date,tipo' });
+    if (error) throw error;
+  }
+
+  async function deleteShift(id) {
+    const uid = await getUserId(); if (!uid) return;
+    const { error } = await supa.from('shifts').delete().eq('id', id).eq('user_id', uid);
+    if (error) throw error;
+  }
+
+  // ALLOWANCES
+  async function fetchAllowances() {
+    const uid = await getUserId(); if (!uid) return [];
+    const { data, error } = await supa.from('allowances').select('*').eq('user_id', uid).order('date');
+    if (error) { console.warn('fetchAllowances error', error); return getJSON(LS_KEYS.IND, []); }
+    setJSON(LS_KEYS.IND, data || []);
+    return data || [];
+  }
+
+  async function insertAllowance(row) {
+    const uid = await getUserId(); if (!uid) return;
+    const payload = { ...row, user_id: uid };
+    const { error } = await supa.from('allowances').insert(payload);
+    if (error) throw error;
+  }
+
+  // ABSENCES (placeholder)
+  async function insertAbsence(row) {
+    const uid = await getUserId(); if (!uid) return;
+    const payload = { ...row, user_id: uid };
+    const { error } = await supa.from('absences').insert(payload);
+    if (error) throw error;
+  }
+
+  /*********************
+   * RENDER: Calendario, Agenda, Grafico
+   *********************/
+  let _calendar, _chart;
+
+  function mapShiftsToEvents(shifts) {
+    const titleMap = { sera:'Turno sera', pomeriggio:'Turno pomeriggio', mattina:'Turno mattina', notte:'Turno notte', riposo:'Riposo' };
+    const classMap = { sera:'turno-sera', pomeriggio:'turno-pomeriggio', mattina:'turno-mattina', notte:'turno-notte', riposo:'turno-riposo' };
+    return (shifts || []).map(s => ({
+      id: s.id,
+      title: titleMap[s.tipo] || s.tipo,
+      start: s.date,
+      allDay: true,
+      className: classMap[s.tipo] || '',
+      extendedProps: { tipo: s.tipo, origin: s.origin || 'manual' }
+    }));
+  }
+
+  function renderCalendar(events) {
+    const el = document.getElementById('calendario-app');
+    if (!el || typeof FullCalendar === 'undefined') return;
+
+    if (!_calendar) {
+      _calendar = new FullCalendar.Calendar(el, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        fixedWeekCount: false,
+        showNonCurrentDates: true,
+        dayMaxEvents: true,
+        events: events || []
+      });
+      _calendar.render();
+    } else {
+      _calendar.removeAllEvents();
+      _calendar.addEventSource(events || []);
+      _calendar.updateSize();
+    }
+  }
+
+  function renderAgendaList(containerSelector, events) {
+    const el = document.querySelector(containerSelector);
+    if (!el) return;
+    const items = [...(events || [])]
+      .sort((a,b)=> (a.start < b.start ? -1 : 1));
+
+    el.innerHTML = '';
+    for (const ev of items) {
+      const d = new Date(ev.start);
+      const item = document.createElement('div');
+      item.className = 'border rounded p-3';
+      item.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold">${d.toLocaleDateString('it-IT', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })}</div>
+            <div class="text-muted small">${ev.title}</div>
+          </div>
+          <div class="d-flex gap-3">
+            <a href="#" class="link-danger" data-del="${ev.id}">Elimina</a>
+          </div>
+        </div>
+      `;
+      el.appendChild(item);
+    }
+
+    // delete
+    el.querySelectorAll('[data-del]')?.forEach(a=>{
+      a.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const id = a.getAttribute('data-del');
+        try {
+          await deleteShift(id);
+          await loadAllDataAndRender();
+        } catch (err) {
+          // fallback cache
+          let cache = getJSON(LS_KEYS.CAL, []);
+          cache = cache.filter(x => x.id !== id);
+          setJSON(LS_KEYS.CAL, cache);
+          renderCalendar(mapShiftsToEvents(cache));
+          renderAgendaList('#agenda-list', mapShiftsToEvents(cache));
+        }
+      });
     });
-  })();
+  }
+
+  function renderIndennitaChartPlaceholder() {
+    const el = document.getElementById('chart-indennita');
+    if (!el || typeof Chart === 'undefined') return;
+
+    const labels = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const values = Array(12).fill(0);
+
+    if (_chart) _chart.destroy();
+    _chart = new Chart(el, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Indennità', data: values, tension: 0.3, fill: false }] },
+      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  function renderIndennitaChartFromAllowances(allowances) {
+    const el = document.getElementById('chart-indennita');
+    if (!el || typeof Chart === 'undefined') return;
+
+    const labels = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const values = Array(12).fill(0);
+
+    for (const a of (allowances || [])) {
+      const d = new Date(a.date);
+      const m = d.getMonth(); // 0..11
+      const val = parseFloat(a.importo || 0);
+      values[m] += isNaN(val) ? 0 : val;
+    }
+
+    if (_chart) _chart.destroy();
+    _chart = new Chart(el, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Indennità', data: values, tension: 0.3, fill: false }] },
+      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  /*********************
+   * LOAD & SYNC
+   *********************/
+  async function loadAllDataAndRender() {
+    try {
+      const [shifts, allowances] = await Promise.all([fetchShifts(), fetchAllowances()]);
+      const events = mapShiftsToEvents(shifts);
+      renderCalendar(events);
+      renderAgendaList('#agenda-list', events);
+      renderIndennitaChartFromAllowances(allowances);
+    } catch (err) {
+      console.warn('loadAllData error, uso cache', err);
+      const cacheShifts = getJSON(LS_KEYS.CAL, []);
+      const cacheAllow = getJSON(LS_KEYS.IND, []);
+      renderCalendar(mapShiftsToEvents(cacheShifts));
+      renderAgendaList('#agenda-list', mapShiftsToEvents(cacheShifts));
+      renderIndennitaChartFromAllowances(cacheAllow);
+    }
+  }
 
   /*********************
    * NAV TABS
@@ -489,70 +713,86 @@
       a.classList.add('active');
       pages.forEach(p=>p.classList.remove('active'));
       document.getElementById(a.dataset.target)?.classList.add('active');
-      if (a.dataset.target === 'page-calendario' && window._calendar) {
-        setTimeout(()=>window._calendar.updateSize(), 50);
+      if (a.dataset.target === 'page-calendario' && _calendar) {
+        setTimeout(()=>_calendar.updateSize(), 50);
       }
     });
   })();
 
   /*********************
-   * CHART: Indennità Mensili (sempre visibile)
+   * FORMS: Turno / Indennità / Assenza
    *********************/
-  (function chartIndennita(){
-    const el = document.getElementById('chart-indennita');
-    if (!el || typeof Chart === 'undefined') return;
+  // Aggiungi turno manuale
+  $('#form-add-turno')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const data = $('#turno-data').value;
+    const tipo = $('#turno-tipo').value;
+    const note = $('#turno-note').value || null;
+    if (!data || !tipo) return;
 
-    const stored = getJSON(LS_KEYS.IND, []);
-    const labels = stored.length ? stored.map(x=>x.label) : ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const values = stored.length ? stored.map(x=>x.value) : Array(12).fill(0);
+    try {
+      await upsertShifts([{ date: data, tipo, note, origin: 'manual' }]);
+      await loadAllDataAndRender();
+      document.querySelector('#modalAddTurno .btn-close').click();
+    } catch (err) {
+      // cache fallback
+      const cache = getJSON(LS_KEYS.CAL, []);
+      cache.push({ id: 'cache-'+Math.random().toString(36).slice(2), date: data, tipo, note, origin:'manual' });
+      setJSON(LS_KEYS.CAL, cache);
+      renderCalendar(mapShiftsToEvents(cache));
+      renderAgendaList('#agenda-list', mapShiftsToEvents(cache));
+      document.querySelector('#modalAddTurno .btn-close').click();
+    }
+  });
 
-    const chart = new Chart(el, {
-      type: 'line',
-      data: { labels, datasets: [{ label: 'Indennità', data: values, tension: 0.3, fill: false }] },
-      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-    });
+  // Aggiungi indennità
+  $('#form-add-indennita')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const data = $('#ind-data').value;
+    const tipo = $('#ind-tipo').value;
+    const importo = parseFloat($('#ind-importo').value || '0');
+    const note = $('#ind-note').value || null;
+    if (!data || !tipo || isNaN(importo)) return;
 
-    window.updateIndennitaChart = function(newData){
-      setJSON(LS_KEYS.IND, newData);
-      chart.data.labels = newData.map(x=>x.label);
-      chart.data.datasets[0].data = newData.map(x=>x.value);
-      chart.update();
-    };
+    try {
+      await insertAllowance({ date: data, tipo, importo, note });
+      await loadAllDataAndRender();
+      document.querySelector('#modalAddIndennita .btn-close').click();
+    } catch (err) {
+      // cache fallback (solo per grafico locale)
+      const cache = getJSON(LS_KEYS.IND, []);
+      cache.push({ date: data, tipo, importo, note });
+      setJSON(LS_KEYS.IND, cache);
+      renderIndennitaChartFromAllowances(cache);
+      document.querySelector('#modalAddIndennita .btn-close').click();
+    }
+  });
 
-    window.addEventListener('resize', ()=>chart.resize());
-    document.addEventListener('visibilitychange', ()=>!document.hidden && chart.resize());
-  })();
+  // Aggiungi assenza (placeholder persistente su DB)
+  $('#form-add-assenza')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const start = $('#ass-start').value;
+    const end   = $('#ass-end').value;
+    const tipo  = $('#ass-tipo').value;
+    const note  = $('#ass-note').value || null;
+    if (!start || !end || !tipo) return;
 
-  /*********************
-   * FULLCALENDAR: sempre visibile
-   *********************/
-  (function calendario(){
-    const el = document.getElementById('calendario-app');
-    if (!el || typeof FullCalendar === 'undefined') return;
-
-    const events = getJSON(LS_KEYS.CAL, []); // [] => griglia visibile comunque
-
-    const calendar = new FullCalendar.Calendar(el, {
-      initialView: 'dayGridMonth',
-      height: 'auto',
-      fixedWeekCount: false,
-      showNonCurrentDates: true,
-      dayMaxEvents: true,
-      events
-    });
-    calendar.render();
-    window._calendar = calendar;
-
-    window.refreshCalendarEvents = function(newEvents){
-      calendar.removeAllEvents();
-      calendar.addEventSource(newEvents);
-    };
-  })();
+    try {
+      await insertAbsence({ start_date: start, end_date: end, tipo, note });
+      document.querySelector('#modalAddAssenza .btn-close').click();
+    } catch (err) {
+      // cache fallback
+      const cache = getJSON(LS_KEYS.ABS, []);
+      cache.push({ start_date: start, end_date: end, tipo, note });
+      setJSON(LS_KEYS.ABS, cache);
+      document.querySelector('#modalAddAssenza .btn-close').click();
+    }
+  });
 
   /*********************
    * AGENDA: Generatore turnazione in quinta
    *********************/
-  (function agenda(){
+  (function agendaRotation(){
     const SEQ = ['sera','pomeriggio','mattina','notte','riposo'];
     const SHIFT_META = {
       sera:       { title: 'Turno sera',       className: 'turno-sera' },
@@ -566,151 +806,54 @@
       const startIdx = SEQ.indexOf(startShift);
       if (startIdx < 0) throw new Error('Turno iniziale non valido');
 
-      const events = [];
+      const rows = [];
       let i = 0;
       for (const day of daysRange(start, end)) {
         const tipo = SEQ[(startIdx + i) % SEQ.length];
-        const meta = SHIFT_META[tipo];
-        events.push({
-          id: `auto-${fmtISO(day)}-${tipo}`,
-          title: meta.title,
-          start: fmtISO(day),
-          allDay: true,
-          className: meta.className,
-          extendedProps: { tipo, origin: 'auto' }
-        });
+        rows.push({ date: fmtISO(day), tipo, note: null, origin: 'auto' });
         i++;
       }
-      return events;
+      return rows;
     }
 
-    function mergeEvents(existing, generated) {
-      // protegge quelli manuali (senza origin=auto)
-      const manual = existing.filter(e => !(e.extendedProps && e.extendedProps.origin === 'auto'));
-      const map = new Map(manual.map(e => [e.id || `${e.start}-${e.title}`, e]));
-      for (const ev of generated) {
-        map.set(ev.id || `${ev.start}-${ev.title}`, ev);
-      }
-      return Array.from(map.values());
-    }
+    $('#r-genera')?.addEventListener('click', async ()=>{
+      const ds = $('#r-start').value;
+      const de = $('#r-end').value;
+      const shift = $('#r-start-shift').value;
+      const out = $('#r-esito');
 
-    // Hook UI
-    const $start = document.getElementById('r-start');
-    const $end   = document.getElementById('r-end');
-    const $sel   = document.getElementById('r-start-shift');
-    const $btn   = document.getElementById('r-genera');
-    const $out   = document.getElementById('r-esito');
-
-    $btn?.addEventListener('click', ()=>{
-      try{
-        const ds = $start.value, de = $end.value, shift = $sel.value;
+      try {
         if (!ds || !de || !shift) throw new Error('Compila data inizio, data fine e turno iniziale.');
         const dStart = parseISO(ds), dEnd = parseISO(de);
         if (dEnd < dStart) throw new Error('La data di fine deve essere successiva a quella di inizio.');
-        const gen = generateRotation({ start: dStart, end: dEnd, startShift: shift });
+        const rows = generateRotation({ start: dStart, end: dEnd, startShift: shift });
 
-        const existing = getJSON(LS_KEYS.CAL, []);
-        const merged = mergeEvents(existing, gen);
+        await upsertShifts(rows);
+        await loadAllDataAndRender();
+        if (out) out.textContent = `Generati ${rows.length} turni fino al ${de}.`;
+      } catch (err) {
+        // cache fallback
+        const cache = getJSON(LS_KEYS.CAL, []);
+        const toAdd = generateRotation({ start: parseISO(ds), end: parseISO(de), startShift: shift })
+          .map(r => ({ id: 'cache-'+Math.random().toString(36).slice(2), ...r }));
+        const merged = [...cache, ...toAdd];
         setJSON(LS_KEYS.CAL, merged);
-
-        if (typeof window.refreshCalendarEvents === 'function') window.refreshCalendarEvents(merged);
-        window.dispatchEvent(new CustomEvent('turni:generated', { detail: { count: gen.length } }));
-        if ($out) $out.textContent = `Generati ${gen.length} turni fino al ${de}.`;
-      } catch(err){
-        if ($out) $out.textContent = err.message || 'Errore durante la generazione.';
-        else alert(err.message || 'Errore durante la generazione.');
+        renderCalendar(mapShiftsToEvents(merged));
+        renderAgendaList('#agenda-list', mapShiftsToEvents(merged));
+        if (out) out.textContent = `Generati (cache) ${toAdd.length} turni fino al ${de}.`;
       }
     });
-
-    // Agenda list
-    function renderAgendaList(containerSelector) {
-      const el = document.querySelector(containerSelector);
-      if (!el) return;
-      const events = getJSON(LS_KEYS.CAL, [])
-        .filter(e => e.extendedProps?.tipo) // solo turni
-        .sort((a,b)=> (a.start < b.start ? -1 : 1));
-
-      el.innerHTML = '';
-      for (const ev of events) {
-        const d = new Date(ev.start);
-        const item = document.createElement('div');
-        item.className = 'border rounded p-3';
-        item.innerHTML = `
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="fw-bold">${d.toLocaleDateString('it-IT', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })}</div>
-              <div class="text-muted small">${ev.title}</div>
-            </div>
-            <div class="d-flex gap-3">
-              <a href="#" class="link-primary" data-del="${ev.id}">Elimina</a>
-            </div>
-          </div>
-        `;
-        el.appendChild(item);
-      }
-
-      // delete handler
-      el.querySelectorAll('[data-del]')?.forEach(a=>{
-        a.addEventListener('click', (e)=>{
-          e.preventDefault();
-          const id = a.getAttribute('data-del');
-          let arr = getJSON(LS_KEYS.CAL, []);
-          arr = arr.filter(x => (x.id || `${x.start}-${x.title}`) !== id);
-          setJSON(LS_KEYS.CAL, arr);
-          if (typeof window.refreshCalendarEvents === 'function') window.refreshCalendarEvents(arr);
-          renderAgendaList(containerSelector);
-        });
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', ()=>renderAgendaList('#agenda-list'));
-    window.addEventListener('turni:generated', ()=>renderAgendaList('#agenda-list'));
   })();
 
   /*********************
-   * FORM: Aggiungi Turno / Indennità / Assenza (semplice)
+   * CHART placeholder all'avvio
    *********************/
-  (function forms(){
-    // Turno
-    document.getElementById('form-add-turno')?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const data = document.getElementById('turno-data').value;
-      const tipo = document.getElementById('turno-tipo').value;
-      if (!data || !tipo) return;
-      const titleMap = { sera:'Turno sera', pomeriggio:'Turno pomeriggio', mattina:'Turno mattina', notte:'Turno notte', riposo:'Riposo' };
-      const events = getJSON(LS_KEYS.CAL, []);
-      const id = `man-${data}-${tipo}-${Math.random().toString(36).slice(2,8)}`;
-      events.push({ id, title: titleMap[tipo] || tipo, start: data, allDay:true, extendedProps:{ tipo, origin:'manual' } });
-      setJSON(LS_KEYS.CAL, events);
-      if (typeof window.refreshCalendarEvents === 'function') window.refreshCalendarEvents(events);
-      document.querySelector('#modalAddTurno .btn-close').click();
-    });
+  renderIndennitaChartPlaceholder();
 
-    // Indennità (aggiorna grafico con somma semplice per mese)
-    document.getElementById('form-add-indennita')?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const data = document.getElementById('ind-data').value;
-      const importo = parseFloat(document.getElementById('ind-importo').value||'0');
-      if (!data || isNaN(importo)) return;
-
-      const d = new Date(data+'T00:00:00');
-      const month = d.toLocaleString('it-IT', { month:'short' });
-      const labelsDefault = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-
-      const arr = getJSON(LS_KEYS.IND, labelsDefault.map(l=>({label:l, value:0})));
-      const idx = arr.findIndex(x => x.label.toLowerCase().startsWith(month.slice(0,3).toLowerCase()));
-      if (idx >= 0) arr[idx].value += importo;
-      setJSON(LS_KEYS.IND, arr);
-      if (typeof window.updateIndennitaChart === 'function') window.updateIndennitaChart(arr);
-      document.querySelector('#modalAddIndennita .btn-close').click();
-    });
-
-    // Assenza (solo persist/placeholder per estensioni future)
-    document.getElementById('form-add-assenza')?.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      document.querySelector('#modalAddAssenza .btn-close').click();
-    });
-  })();
+  /*********************
+   * INIT: controlla sessione
+   *********************/
+  checkSessionUI();
 
   /*********************
    * PWA: Service Worker (facoltativo)
